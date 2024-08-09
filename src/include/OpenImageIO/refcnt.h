@@ -238,7 +238,7 @@ intrusive_ptr_release(T* x)
 // heapsize specialization for `intrusive_ptr`
 template<typename T>
 inline size_t
-pvt::heapsize(intrusive_ptr<T> ref)
+pvt::heapsize(const intrusive_ptr<T>& ref)
 {
     return ref ? pvt::footprint(*ref.get()) : 0;
 }
@@ -246,7 +246,7 @@ pvt::heapsize(intrusive_ptr<T> ref)
 // footprint specialization for `intrusive_ptr`
 template<typename T>
 inline size_t
-pvt::footprint(intrusive_ptr<T> ref)
+pvt::footprint(const intrusive_ptr<T>& ref)
 {
     return sizeof(intrusive_ptr<T>) + pvt::heapsize(ref);
 }
