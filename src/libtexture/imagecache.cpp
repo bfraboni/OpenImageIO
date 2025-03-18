@@ -1035,7 +1035,7 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                 // i.e. we check if the previous subimage at the same mip level
                 // has an allocated LevelSpec and has the same dimensions
                 std::shared_ptr<LevelSpec> tmp;
-                if (nsubimages > 0) {
+                if (nsubimages > 0 && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                     const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
                     if (lvl.m_levelspec && levelspec.is_same(*lvl.m_levelspec))
                         tmp = lvl.m_levelspec;
@@ -1098,7 +1098,7 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                     // i.e. we check if the previous subimage at the same mip level
                     // has an allocated LevelSpec and has the same dimensions
                     std::shared_ptr<LevelSpec> tmp;
-                    if (nsubimages > 0) {
+                    if (nsubimages > 0 && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                         const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
                         if (lvl.m_levelspec
                             && levelspec.is_same(*lvl.m_levelspec))
