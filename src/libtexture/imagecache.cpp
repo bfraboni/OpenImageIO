@@ -300,8 +300,6 @@ is_same(const ImageSpec& a, const ImageSpec& b)
 
     // test format
     same &= a.format == b.format;
-
-    // test channel formats
     same &= a.channelformats.size() == b.channelformats.size();
     if (!same)
         return same;
@@ -327,7 +325,17 @@ is_same(const ImageSpec& a, const ImageSpec& b)
         same &= a.extra_attribs.at(i).type() == b.extra_attribs.at(i).type();
         same &= a.extra_attribs.at(i).nvalues()
                 == b.extra_attribs.at(i).nvalues();
-        //! TODO: test also values equality ... this is a pain
+        same &= a.extra_attribs.at(i).datasize()
+                == b.extra_attribs.at(i).datasize();
+        if (!same)
+            return same;
+
+        //! mem compare the attribute data
+        const int size       = a.extra_attribs.at(i).datasize();
+        const bool same_data = std::memcmp(a.extra_attribs.at(i).data(),
+                                           b.extra_attribs.at(i).data(), size)
+                               == 0;
+        same &= same_data;
         if (!same)
             return same;
     }
@@ -4596,6 +4604,7 @@ ImageCacheImpl::footprint(ImageCacheFootprint& output) const
 
         for (const auto& sptr : file.m_subimageinfo_specs)
             output.add<kSpecMem>(footprint(sptr), format);
+
         for (const auto& sptr : file.m_levelinfo_specs)
             output.add<kSpecMem>(footprint(sptr), format);
 
