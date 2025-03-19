@@ -268,8 +268,6 @@ public:
 
     //! LevelSpec is a minified ImageSpec to describe a miplevel image in the ImageCache.
     //! It holds fields that can differ from the ImageSpec of the associated subimage.
-    //! TODO: can we compress this even more with bitfield and dynamic alloc ?
-    //!     ideally we don't want to store any fields that are identical to the reference spec...
     struct LevelSpec {
         //! fields that can change for each miplevel
         int x;            ///< origin (upper left corner) of pixel data
@@ -309,7 +307,7 @@ public:
     /// Info for each MIP level that isn't in the ImageSpec, or that we
     /// precompute.
     struct LevelInfo {
-        ImageSpec*
+        std::shared_ptr<ImageSpec>
             m_spec;  ///< Ptr to parent subimage spec, this ptr should live as long as the parent subimage
         std::shared_ptr<LevelSpec>
             m_levelspec;  ///< Extra level info in case they are different from the subimage spec
@@ -318,13 +316,12 @@ public:
         int nxtiles, nytiles, nztiles;  ///< Number of tiles in each dimension
         bool full_pixel_range;  ///< pixel data window matches image window
         bool onetile;           ///< Whole level fits on one tile
-        bool shared_levelspec;  ///< mark whether LevelSpec is created for this mip level or reused
         mutable bool polecolorcomputed;  ///< Pole color was computed
 
-        LevelInfo(ImageSpec* spec, std::shared_ptr<LevelSpec> levelspec,
-                  bool shared_levelspec);
-        LevelInfo(ImageSpec* spec)
-            : LevelInfo(spec, nullptr, false)
+        LevelInfo(const std::shared_ptr<ImageSpec>& spec,
+                  const std::shared_ptr<LevelSpec>& levelspec);
+        LevelInfo(const std::shared_ptr<ImageSpec>& spec)
+            : LevelInfo(spec, nullptr)
         {
         }
 
@@ -337,11 +334,6 @@ public:
 
         //! Overrides the dimensions in `spec` with the current level dimensions
         void get_level_dimensions(ImageSpec& spec) const;
-
-        //! Update the `full_` values in `m_levelspec`
-        void set_full_width(int w);
-        void set_full_height(int h);
-        void set_full_depth(int d);
 
         //! TODO: I'm trying to avoid copying stuff around with these accessors.
         //! It returns values from either `m_spec` or `m_levelspec`.
@@ -404,8 +396,8 @@ public:
         std::shared_ptr<ImageSpec> m_spec;
 
         SubimageInfo() {}
-        void init(ImageCacheFile& icfile, const ImageSpec& spec,
-                  bool forcefloat);
+        void init(ImageCacheFile& icfile,
+                  const std::shared_ptr<ImageSpec>& spec, bool forcefloat);
         int miplevels() const { return (int)levels.size(); }
 
         void get_level_dimensions(int m, ImageSpec& spec) const
@@ -459,6 +451,8 @@ public:
     {
         m_validspec = false;
         m_subimages.clear();
+        m_subimageinfo_specs.clear();
+        m_levelinfo_specs.clear();
     }
 
     /// Should we print an error message? Keeps track of whether the
@@ -499,11 +493,16 @@ private:
         // set_imageinput -- those are guaranteed thread-safe.
 #endif
     std::vector<SubimageInfo> m_subimages;  ///< Info on each subimage
-    TexFormat m_texformat;                  ///< Which texture format
-    TextureOpt::Wrap m_swrap;               ///< Default wrap modes
-    TextureOpt::Wrap m_twrap;               ///< Default wrap modes
-    TextureOpt::Wrap m_rwrap;               ///< Default wrap modes
-    EnvLayout m_envlayout;                  ///< env map: which layout?
+    std::vector<std::shared_ptr<ImageSpec>> m_subimageinfo_specs;
+    std::vector<std::shared_ptr<LevelSpec>> m_levelinfo_specs;
+    static constexpr bool enable_subimage_spec_reuse = true;
+    static constexpr bool enable_level_spec_reuse    = true;
+
+    TexFormat m_texformat;        ///< Which texture format
+    TextureOpt::Wrap m_swrap;     ///< Default wrap modes
+    TextureOpt::Wrap m_twrap;     ///< Default wrap modes
+    TextureOpt::Wrap m_rwrap;     ///< Default wrap modes
+    EnvLayout m_envlayout;        ///< env map: which layout?
     bool m_y_up;                  ///< latlong: is y "up"? (else z is up)
     bool m_sample_border;         ///< are edge samples exactly on the border?
     short m_udim_nutiles;         ///< Number of u tiles (0 if not a udim)

@@ -270,6 +270,73 @@ LevelSpec::is_same(const T& s) const
 
 
 
+static bool
+is_same(const ImageSpec& a, const ImageSpec& b)
+{
+    bool same = true;
+
+    // test simple fields first
+    same &= a.x == b.x;
+    same &= a.y == b.y;
+    same &= a.z == b.z;
+    same &= a.width == b.width;
+    same &= a.height == b.height;
+    same &= a.depth == b.depth;
+    same &= a.full_x == b.full_x;
+    same &= a.full_y == b.full_y;
+    same &= a.full_z == b.full_z;
+    same &= a.full_width == b.full_width;
+    same &= a.full_height == b.full_height;
+    same &= a.full_depth == b.full_depth;
+    same &= a.tile_width == b.tile_width;
+    same &= a.tile_height == b.tile_height;
+    same &= a.tile_depth == b.tile_depth;
+    same &= a.nchannels == b.nchannels;
+    same &= a.alpha_channel == b.alpha_channel;
+    same &= a.z_channel == b.z_channel;
+    same &= a.deep == b.deep;
+    if (!same)
+        return same;
+
+    // test format
+    same &= a.format == b.format;
+
+    // test channel formats
+    same &= a.channelformats.size() == b.channelformats.size();
+    if (!same)
+        return same;
+    for (size_t i = 0; i < a.channelformats.size(); ++i)
+        same &= a.channelformats.at(i) == b.channelformats.at(i);
+
+    // test channel names
+    same &= a.channelnames.size() == b.channelnames.size();
+    if (!same)
+        return same;
+    for (size_t i = 0; i < a.channelnames.size(); ++i)
+        same &= a.channelnames.at(i) == b.channelnames.at(i);
+
+    if (!same)
+        return same;
+
+    // test meta data
+    same &= a.extra_attribs.size() == b.extra_attribs.size();
+    if (!same)
+        return same;
+    for (size_t i = 0; i < a.extra_attribs.size(); ++i) {
+        same &= a.extra_attribs.at(i).name() == b.extra_attribs.at(i).name();
+        same &= a.extra_attribs.at(i).type() == b.extra_attribs.at(i).type();
+        same &= a.extra_attribs.at(i).nvalues()
+                == b.extra_attribs.at(i).nvalues();
+        //! TODO: test also values equality ... this is a pain
+        if (!same)
+            return same;
+    }
+
+    return same;
+}
+
+
+
 imagesize_t
 LevelSpec::tile_pixels() const
 {
@@ -351,16 +418,15 @@ init_ntiles(LevelInfo& lvl, const T& s)
 
 
 
-LevelInfo::LevelInfo(ImageSpec* spec_, std::shared_ptr<LevelSpec> levelspec_,
-                     bool shared_levelspec_)
+LevelInfo::LevelInfo(const std::shared_ptr<ImageSpec>& spec_,
+                     const std::shared_ptr<LevelSpec>& levelspec_)
     : m_spec(spec_)
-    , m_levelspec(std::move(levelspec_))
+    , m_levelspec(levelspec_)
 {
     const ImageSpec& spec = get_subimage_spec();
     full_pixel_range      = m_levelspec ? has_full_pixel_range(*m_levelspec)
                                         : has_full_pixel_range(spec);
     onetile = m_levelspec ? has_one_tile(*m_levelspec) : has_one_tile(spec);
-    shared_levelspec  = shared_levelspec_;
     polecolorcomputed = false;
 
     // Allocate bit field for which tiles have been read at least once.
@@ -381,15 +447,12 @@ LevelInfo::LevelInfo(ImageSpec* spec_, std::shared_ptr<LevelSpec> levelspec_,
 
 LevelInfo::LevelInfo(const LevelInfo& src)
     : m_spec(src.m_spec)
-    , m_levelspec(src.m_levelspec
-                      ? std::make_unique<LevelSpec>(*src.m_levelspec)
-                      : nullptr)
+    , m_levelspec(src.m_levelspec)
     , nxtiles(src.nxtiles)
     , nytiles(src.nytiles)
     , nztiles(src.nztiles)
     , full_pixel_range(src.full_pixel_range)
     , onetile(src.onetile)
-    , shared_levelspec(src.shared_levelspec)
     , polecolorcomputed(src.polecolorcomputed)
 {
     const ImageSpec& spec = get_subimage_spec();
@@ -430,45 +493,6 @@ LevelInfo::get_level_dimensions(ImageSpec& spec) const
         m_levelspec->copy_dimensions(spec);
     else
         spec.copy_dimensions(get_subimage_spec());
-}
-
-
-
-void
-LevelInfo::set_full_width(int w)
-{
-    if (!m_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(
-            LevelSpec(get_subimage_spec()));
-    else if (shared_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(LevelSpec(*m_levelspec));
-    m_levelspec->full_width = w;
-}
-
-
-
-void
-LevelInfo::set_full_height(int h)
-{
-    if (!m_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(
-            LevelSpec(get_subimage_spec()));
-    else if (shared_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(LevelSpec(*m_levelspec));
-    m_levelspec->full_height = h;
-}
-
-
-
-void
-LevelInfo::set_full_depth(int d)
-{
-    if (!m_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(
-            LevelSpec(get_subimage_spec()));
-    else if (shared_levelspec)
-        m_levelspec = std::make_shared<LevelSpec>(LevelSpec(*m_levelspec));
-    m_levelspec->full_depth = d;
 }
 
 
@@ -779,41 +803,43 @@ ImageCacheFile::set_imageinput(std::shared_ptr<ImageInput> newval)
 
 void
 ImageCacheFile::SubimageInfo::init(ImageCacheFile& icfile,
-                                   const ImageSpec& spec, bool forcefloat)
+                                   const std::shared_ptr<ImageSpec>& spec,
+                                   bool forcefloat)
 {
-    m_spec = std::make_shared<ImageSpec>(spec);
+    m_spec = spec;
     OIIO_DASSERT(m_spec);
 
-    volume           = (spec.depth > 1 || spec.full_depth > 1);
-    full_pixel_range = has_full_pixel_range(spec);
+    volume           = (m_spec->depth > 1 || m_spec->full_depth > 1);
+    full_pixel_range = has_full_pixel_range(*m_spec);
     if (!full_pixel_range) {
-        sscale  = float(spec.full_width) / spec.width;
-        soffset = float(spec.full_x - spec.x) / spec.width;
-        tscale  = float(spec.full_height) / spec.height;
-        toffset = float(spec.full_y - spec.y) / spec.height;
+        sscale  = float(m_spec->full_width) / m_spec->width;
+        soffset = float(m_spec->full_x - m_spec->x) / m_spec->width;
+        tscale  = float(m_spec->full_height) / m_spec->height;
+        toffset = float(m_spec->full_y - m_spec->y) / m_spec->height;
     } else {
         sscale = tscale = 1.0f;
         soffset = toffset = 0.0f;
     }
-    subimagename = ustring(spec.get_string_attribute("oiio:subimagename"));
+    subimagename = ustring(m_spec->get_string_attribute("oiio:subimagename"));
     datatype     = TypeDesc::FLOAT;
     if (!forcefloat) {
         // If we aren't forcing everything to be float internally, then
         // there are a few other types we allow.
-        if (spec.format == TypeDesc::UINT8 || spec.format == TypeDesc::UINT16
-            || spec.format == TypeDesc::HALF
-            /* future expansion:  || spec.format == AnotherFormat ... */)
-            datatype = spec.format;
+        if (m_spec->format == TypeDesc::UINT8
+            || m_spec->format == TypeDesc::UINT16
+            || m_spec->format == TypeDesc::HALF
+            /* future expansion:  || m_spec->format == AnotherFormat ... */)
+            datatype = m_spec->format;
     }
     channelsize = datatype.size();
-    pixelsize   = channelsize * spec.nchannels;
+    pixelsize   = channelsize * m_spec->nchannels;
 
     // See if there's a constant color tag
-    string_view software = spec.get_string_attribute("Software");
+    string_view software = m_spec->get_string_attribute("Software");
     bool from_maketx     = Strutil::istarts_with(software, "OpenImageIO")
                        || Strutil::istarts_with(software, "maketx");
 
-    string_view constant_color = spec.get_string_attribute(
+    string_view constant_color = m_spec->get_string_attribute(
         "oiio:ConstantColor");
     if (from_maketx && constant_color.size()) {
         while (constant_color.size()) {
@@ -824,14 +850,14 @@ ImageCacheFile::SubimageInfo::init(ImageCacheFile& icfile,
             if (!Strutil::parse_char(constant_color, ','))
                 break;
         }
-        if (average_color.size() == size_t(spec.nchannels)) {
+        if (average_color.size() == size_t(m_spec->nchannels)) {
             is_constant_image = true;
             has_average_color = true;
         }
     }
 
     // See if there's an average color tag
-    string_view avgcolor = spec.get_string_attribute("oiio:AverageColor");
+    string_view avgcolor = m_spec->get_string_attribute("oiio:AverageColor");
     if (from_maketx && avgcolor.size()) {
         while (avgcolor.size()) {
             float val;
@@ -841,11 +867,11 @@ ImageCacheFile::SubimageInfo::init(ImageCacheFile& icfile,
             if (!Strutil::parse_char(avgcolor, ','))
                 break;
         }
-        if (average_color.size() == size_t(spec.nchannels))
+        if (average_color.size() == size_t(m_spec->nchannels))
             has_average_color = true;
     }
 
-    const ParamValue* p = spec.find_attribute("worldtolocal", TypeMatrix);
+    const ParamValue* p = m_spec->find_attribute("worldtolocal", TypeMatrix);
     if (p) {
         Imath::M44f c2w;
         icfile.m_imagecache.get_commontoworld(c2w);
@@ -971,8 +997,25 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
             nativespec = inp->spec(nsubimages, nmip);
             tempspec   = nativespec;
             if (nmip == 0) {
+                // next we try to deduplicate ImageSpec across subimages:
+                // i.e. we check if the previous subimage at the same mip level
+                // has an allocated ImageSpec and has the same dimensions
+                //! TODO: we should only do that for specific image format
+                // like Ptex;
+                std::shared_ptr<ImageSpec> tmp = nullptr;
+                if (enable_subimage_spec_reuse && nsubimages > 0) {
+                    const SubimageInfo& prev(subimageinfo(nsubimages - 1));
+                    if (prev.m_spec && is_same(*prev.m_spec, tempspec))
+                        tmp = prev.m_spec;
+                }
+                // if we cannot reuse a previously allocated ImageSpec, just create one
+                if (!tmp) {
+                    m_subimageinfo_specs.emplace_back(
+                        std::make_shared<ImageSpec>(tempspec));
+                    tmp = m_subimageinfo_specs.back();
+                }
                 // Things to do on MIP level 0, i.e. once per subimage
-                si.init(*this, tempspec, imagecache().forcefloat());
+                si.init(*this, tmp, imagecache().forcefloat());
             }
             if (tempspec.tile_width == 0 || tempspec.tile_height == 0) {
                 si.untiled   = true;
@@ -1028,23 +1071,26 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
             LevelSpec levelspec(tempspec);
             OIIO_DASSERT(si.m_spec);
             if (levelspec.is_same(*si.m_spec)) {
-                LevelInfo levelinfo(si.m_spec.get());
+                LevelInfo levelinfo(si.m_spec);
                 si.levels.push_back(levelinfo);
             } else {
                 // next we try to deduplicate LevelSpec across subimages:
                 // i.e. we check if the previous subimage at the same mip level
                 // has an allocated LevelSpec and has the same dimensions
                 std::shared_ptr<LevelSpec> tmp;
-                if (nsubimages > 0 && nmip < subimageinfo(nsubimages - 1).miplevels()) {
+                if (enable_level_spec_reuse && nsubimages > 0
+                    && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                     const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
                     if (lvl.m_levelspec && levelspec.is_same(*lvl.m_levelspec))
                         tmp = lvl.m_levelspec;
                 }
                 // if we cannot reuse a previously allocated LevelSpec, just create one
-                const bool shared_levelspec = bool(tmp);
-                if (!shared_levelspec)
-                    tmp = std::make_shared<LevelSpec>(levelspec);
-                LevelInfo levelinfo(si.m_spec.get(), tmp, shared_levelspec);
+                if (!tmp) {
+                    m_levelinfo_specs.emplace_back(
+                        std::make_shared<LevelSpec>(levelspec));
+                    tmp = m_levelinfo_specs.back();
+                }
+                LevelInfo levelinfo(si.m_spec, tmp);
                 si.levels.push_back(levelinfo);
             }
             ++nmip;
@@ -1091,24 +1137,27 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                 LevelSpec levelspec(s);
                 OIIO_DASSERT(si.m_spec);
                 if (levelspec.is_same(*si.m_spec)) {
-                    LevelInfo levelinfo(si.m_spec.get());
+                    LevelInfo levelinfo(si.m_spec);
                     si.levels.push_back(levelinfo);
                 } else {
                     // next we try to deduplicate LevelSpec across subimages:
                     // i.e. we check if the previous subimage at the same mip level
                     // has an allocated LevelSpec and has the same dimensions
                     std::shared_ptr<LevelSpec> tmp;
-                    if (nsubimages > 0 && nmip < subimageinfo(nsubimages - 1).miplevels()) {
+                    if (enable_level_spec_reuse && nsubimages > 0
+                        && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                         const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
                         if (lvl.m_levelspec
                             && levelspec.is_same(*lvl.m_levelspec))
                             tmp = lvl.m_levelspec;
                     }
                     // if we cannot reuse a previously allocated LevelSpec, just create one
-                    const bool shared_levelspec = bool(tmp);
-                    if (!shared_levelspec)
-                        tmp = std::make_shared<LevelSpec>(levelspec);
-                    LevelInfo levelinfo(si.m_spec.get(), tmp, shared_levelspec);
+                    if (!tmp) {
+                        m_levelinfo_specs.emplace_back(
+                            std::make_shared<LevelSpec>(levelspec));
+                        tmp = m_levelinfo_specs.back();
+                    }
+                    LevelInfo levelinfo(si.m_spec, tmp);
                     si.levels.push_back(levelinfo);
                 }
             }
@@ -1180,14 +1229,44 @@ ImageCacheFile::init_from_spec()
         if (m_texformat == TexFormatTexture) {
             for (int s = 0; s < subimages(); ++s) {
                 for (int m = 0; m < miplevels(s); ++m) {
+                    // helper to allocate or reallocate level spec for the mip level
+                    // before doing any modification
+                    auto create_or_update_levelspec = [](LevelInfo& l,
+                                                         ImageCacheFile& f) {
+                        // it there is no level spec, we need to allocate new levelspec from the ImageSpec
+                        if (!l.m_levelspec) {
+                            f.m_levelinfo_specs.emplace_back(
+                                std::make_shared<LevelSpec>(
+                                    l.get_subimage_spec()));
+                            l.m_levelspec = f.m_levelinfo_specs.back();
+                        }
+                        // if level spec is shared, we need to allocate new levelspec from the levelspec
+                        else if (l.m_levelspec.use_count() > 1) {
+                            f.m_levelinfo_specs.emplace_back(
+                                std::make_shared<LevelSpec>(*l.m_levelspec));
+                            l.m_levelspec = f.m_levelinfo_specs.back();
+                        }
+                    };
+
                     LevelInfo& lvl(this->levelinfo(s, m));
-                    if (lvl.get_full_width() > lvl.get_width())
-                        lvl.set_full_width(lvl.get_width());
-                    if (lvl.get_full_height() > lvl.get_height())
-                        lvl.set_full_height(lvl.get_height());
-                    if (lvl.get_full_depth() > lvl.get_depth())
-                        lvl.set_full_depth(lvl.get_depth());
-                    //! TODO: try to deduplicate LevelSpec with previous subimages if possible
+
+                    if (lvl.get_full_width() > lvl.get_width()) {
+                        const int w = lvl.get_width();
+                        create_or_update_levelspec(lvl, *this);
+                        lvl.m_levelspec->full_width = w;
+                    }
+
+                    if (lvl.get_full_height() > lvl.get_height()) {
+                        const int h = lvl.get_height();
+                        create_or_update_levelspec(lvl, *this);
+                        lvl.m_levelspec->full_height = h;
+                    }
+
+                    if (lvl.get_full_depth() > lvl.get_depth()) {
+                        const int d = lvl.get_depth();
+                        create_or_update_levelspec(lvl, *this);
+                        lvl.m_levelspec->full_depth = d;
+                    }
                 }
             }
         }
@@ -1688,6 +1767,8 @@ size_t
 ImageCacheFile::heapsize() const
 {
     size_t size = pvt::heapsize(m_subimages);
+    size += pvt::heapsize(m_subimageinfo_specs);
+    size += pvt::heapsize(m_levelinfo_specs);
     size += pvt::heapsize(m_configspec);
     size += pvt::heapsize(m_input);
     size += pvt::heapsize(m_mipreadcount);
@@ -4512,6 +4593,11 @@ ImageCacheImpl::footprint(ImageCacheFootprint& output) const
 
         const size_t specftp = footprint(file.m_configspec);
         output.add<kSpecMem>(specftp, format);
+
+        for (const auto& sptr : file.m_subimageinfo_specs)
+            output.add<kSpecMem>(footprint(sptr), format);
+        for (const auto& sptr : file.m_levelinfo_specs)
+            output.add<kSpecMem>(footprint(sptr), format);
 
         const size_t inputftp = footprint(file.m_input);
         output.add<kInputMem>(inputftp, format);

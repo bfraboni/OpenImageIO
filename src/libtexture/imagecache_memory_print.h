@@ -132,7 +132,7 @@ printImageCacheMemory(std::ostream& out, const ImageCacheImpl& ic)
                   Strutil::memformat(t.value()[kSubImageMem]),
                   t.value()[kSubImageCount]);
         if (t.value()[kLevelInfoMem] > 0ul)
-            print(out, "          Level infos : {}, count : {}\n",
+            print(out, "          Levels : {}, count : {}\n",
                   Strutil::memformat(t.value()[kLevelInfoMem]),
                   t.value()[kLevelInfoCount]);
     }
