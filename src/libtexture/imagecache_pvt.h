@@ -646,6 +646,26 @@ public:
             // OIIO_DASSERT(m_spec);
             // return *m_spec;
         }
+
+        //! SubimageInfo stores the reference ImageSpec
+        //! LevelInfo stores the fields that differ from the reference in LevelSpec
+        //! These getter internally check where is the required value stored 
+        // int get_full_width(int m) const;
+        // int get_full_height(int m) const;
+        // int get_full_depth(int m) const;
+        // int get_tile_width(int m) const;
+        // int get_tile_height(int m) const;
+        // int get_tile_depth(int m) const;
+        // int get_full_x(int m) const;
+        // int get_full_y(int m) const;
+        // int get_full_z(int m) const;
+        // int get_x(int m) const;
+        // int get_y(int m) const;
+        // int get_z(int m) const;
+        // int get_width(int m) const;
+        // int get_height(int m) const;
+        // int get_depth(int m) const;
+        // int get_channels(int m) const;
     };
 
     const SubimageInfo& subimageinfo(int subimage) const

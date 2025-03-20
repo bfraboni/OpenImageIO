@@ -974,6 +974,10 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
     // of the ImageCacheFile.
     m_subimages.clear();
     int nsubimages = 0;
+    // while(inp->seek_subimage(nsubimages, 0))
+    //     ++nsubimages;
+    // m_subimages.reserve(nsubimages);
+    // nsubimages=0;
 
     // Since each subimage can potentially have its own mipmap levels,
     // keep track of the highest level discovered
@@ -996,9 +1000,15 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                 //! TODO: we should only do that for specific image format
                 // like Ptex;
                 if (enable_subimage_spec_reuse && nsubimages > 0) {
-                    const LevelInfo& prevlvl(levelinfo(nsubimages - 1, 0));
-                    if (prevlvl.m_spec && is_same(*prevlvl.m_spec, tempspec))
-                        sispec = prevlvl.m_spec;
+                    int p = 1;
+                    while (!sispec && p <= 10 && nsubimages - p >= 0)
+                    {
+                        const int subid = nsubimages - p;
+                        p++;
+                        const LevelInfo& lvl(levelinfo(subid, 0));
+                        if (lvl.m_spec && is_same(*lvl.m_spec, tempspec))
+                            sispec = lvl.m_spec;
+                    }
                 }
                 // if we cannot reuse a previously allocated ImageSpec, just create one
                 if (!sispec) {
@@ -1006,10 +1016,29 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                         std::make_shared<ImageSpec>(tempspec));
                     sispec = m_subimageinfo_specs.back();
                 }
+                OIIO_DASSERT(sispec);
                 // Things to do on MIP level 0, i.e. once per subimage
                 si.init(*this, sispec, imagecache().forcefloat());
+
+                // Update file texture format at the first subimage
+                // FIXME -- this should really be per-subimage
+                // if (nsubimages) {
+                //     if (sispec->depth <= 1 && sispec->full_depth <= 1)
+                //         m_texformat = TexFormatTexture;
+                //     else
+                //         m_texformat = TexFormatTexture3d;
+                //     const ParamValue* p;
+                //     if ((p = sispec->find_attribute("textureformat", TypeDesc::STRING))) {
+                //         const char* textureformat = *(const char**)p->data();
+                //         for (int i = 0; i < TexFormatLast; ++i)
+                //             if (Strutil::iequals(textureformat,
+                //                                 texture_format_name((TexFormat)i))) {
+                //                 m_texformat = (TexFormat)i;
+                //                 break;
+                //         }
+                //     }
+                // }
             }
-            OIIO_DASSERT(sispec);
             if (tempspec.tile_width == 0 || tempspec.tile_height == 0) {
                 si.untiled   = true;
                 int autotile = imagecache().autotile();
@@ -1073,11 +1102,19 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                 // i.e. we check if the previous subimage at the same mip level
                 // has an allocated LevelSpec and has the same dimensions
                 std::shared_ptr<LevelSpec> tmp;
-                if (enable_level_spec_reuse && nsubimages > 0
-                    && nmip < subimageinfo(nsubimages - 1).miplevels()) {
-                    const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
-                    if (lvl.m_levelspec && levelspec.is_same(*sispec, lvl))
-                        tmp = lvl.m_levelspec;
+                if (enable_level_spec_reuse && nsubimages > 0) {
+                    int p = 1;
+                    while (!tmp && p <= 10 && nsubimages - p >= 0)
+                    {
+                        const int subid = nsubimages - p;
+                        p++;
+                        if (nmip < subimageinfo(subid).miplevels())
+                        {
+                            const LevelInfo& lvl(levelinfo(subid, nmip));
+                            if (lvl.m_levelspec && levelspec.is_same(*sispec, lvl))
+                                tmp = lvl.m_levelspec;
+                        }
+                    }
                 }
                 // if we cannot reuse a previously allocated LevelSpec, just create one
                 if (!tmp) {
@@ -1140,11 +1177,19 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                     // i.e. we check if the previous subimage at the same mip level
                     // has an allocated LevelSpec and has the same dimensions
                     std::shared_ptr<LevelSpec> tmp;
-                    if (enable_level_spec_reuse && nsubimages > 0
-                        && nmip < subimageinfo(nsubimages - 1).miplevels()) {
-                        const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
-                        if (lvl.m_levelspec && levelspec.is_same(*sispec, lvl))
-                            tmp = lvl.m_levelspec;
+                    if (enable_level_spec_reuse && nsubimages > 0) {
+                        int p = 1;
+                        while (!tmp && p <= 10 && nsubimages - p >= 0)
+                        {
+                            const int subid = nsubimages - p;
+                            p++;
+                            if (nmip < subimageinfo(subid).miplevels())
+                            {
+                                const LevelInfo& lvl(levelinfo(subid, nmip));
+                                if (lvl.m_levelspec && levelspec.is_same(*sispec, lvl))
+                                    tmp = lvl.m_levelspec;
+                            }
+                        }
                     }
                     // if we cannot reuse a previously allocated LevelSpec, just create one
                     if (!tmp) {
