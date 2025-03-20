@@ -186,12 +186,12 @@ public:
 
     ImageSpec& get_subimage_spec(int subimage)
     {
-        return subimageinfo(subimage).get_subimage_spec();
+        return levelinfo(subimage, 0).get_subimage_spec();
     }
 
     const ImageSpec& get_subimage_spec(int subimage) const
     {
-        return subimageinfo(subimage).get_subimage_spec();
+        return levelinfo(subimage, 0).get_subimage_spec();
     }
 
     ustring filename(void) const { return m_filename; }
@@ -619,7 +619,7 @@ public:
         int min_mip_level = 0;         // Start with this MIP
         std::unique_ptr<int[]> minwh;  // min(width,height) for each MIP level
         ustring subimagename;
-        std::shared_ptr<ImageSpec> m_spec;
+        // std::shared_ptr<ImageSpec> m_spec;
 
         SubimageInfo() {}
         void init(ImageCacheFile& icfile,
@@ -634,22 +634,31 @@ public:
 
         ImageSpec& get_subimage_spec()
         {
-            OIIO_DASSERT(m_spec);
-            return *m_spec;
+            OIIO_DASSERT(miplevels() > 0);
+            return levels[0].get_subimage_spec();
+            // OIIO_DASSERT(m_spec);
+            // return *m_spec;
         }
         const ImageSpec& get_subimage_spec() const
         {
-            OIIO_DASSERT(m_spec);
-            return *m_spec;
+            OIIO_DASSERT(miplevels() > 0);
+            return levels[0].get_subimage_spec();
+            // OIIO_DASSERT(m_spec);
+            // return *m_spec;
         }
     };
 
     const SubimageInfo& subimageinfo(int subimage) const
     {
+        OIIO_DASSERT((int)m_subimages.size() > subimage);
         return m_subimages[subimage];
     }
 
-    SubimageInfo& subimageinfo(int subimage) { return m_subimages[subimage]; }
+    SubimageInfo& subimageinfo(int subimage)
+    {
+        OIIO_DASSERT((int)m_subimages.size() > subimage);
+        return m_subimages[subimage];
+    }
 
     const LevelInfo& levelinfo(int subimage, int miplevel) const
     {
