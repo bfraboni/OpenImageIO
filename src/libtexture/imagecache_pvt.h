@@ -22,6 +22,7 @@
 #include <OpenImageIO/timer.h>
 #include <OpenImageIO/unordered_map_concurrent.h>
 
+#include <bitset>
 
 OIIO_NAMESPACE_BEGIN
 
@@ -268,6 +269,9 @@ public:
 
     //! LevelSpec is a minified ImageSpec to describe a miplevel image in the ImageCache.
     //! It holds fields that can differ from the ImageSpec of the associated subimage.
+#define USE_UNCOMPRESSED_LEVELSPEC
+#ifdef USE_UNCOMPRESSED_LEVELSPEC
+    struct LevelInfo;
     struct LevelSpec {
         //! fields that can change for each miplevel
         int x;            ///< origin (upper left corner) of pixel data
@@ -290,19 +294,213 @@ public:
         //! Similar to ImageSpec
         LevelSpec();
         LevelSpec(const LevelSpec& other) = default;
-        LevelSpec(const ImageSpec& levelspec);  /// copy members from ImageSpec
+        LevelSpec(const ImageSpec& ref,
+                  const ImageSpec& levelspec);  /// copy members from ImageSpec
 
         //! Returns true iif all members are identical to the `spec` members of the same name.
-        template<typename T> bool is_same(const T& spec) const;
+        bool is_same(const ImageSpec& ref, const LevelInfo& lvl) const;
 
-        //! The following methods are similar to the ones from ImageSpec
-        //! evaluated with the LevelSpec members.
-        imagesize_t tile_pixels() const;
-        imagesize_t image_pixels() const;
         //! NOTE: the following copies LevelSpec internals to `spec`, contrary to
         //! `ImageSpec::copy_dimensions` which does the opposite.
-        void copy_dimensions(ImageSpec& spec);
+        void copy_dimensions(const ImageSpec& ref, ImageSpec& spec);
+
+        int get_x(const ImageSpec& ref) const { return x; }
+        int get_y(const ImageSpec& ref) const { return y; }
+        int get_z(const ImageSpec& ref) const { return z; }
+        int get_width(const ImageSpec& ref) const { return width; }
+        int get_height(const ImageSpec& ref) const { return height; }
+        int get_depth(const ImageSpec& ref) const { return depth; }
+        int get_full_x(const ImageSpec& ref) const { return full_x; }
+        int get_full_y(const ImageSpec& ref) const { return full_y; }
+        int get_full_z(const ImageSpec& ref) const { return full_z; }
+        int get_full_width(const ImageSpec& ref) const { return full_width; }
+        int get_full_height(const ImageSpec& ref) const { return full_height; }
+        int get_full_depth(const ImageSpec& ref) const { return full_depth; }
+        int get_tile_width(const ImageSpec& ref) const { return tile_width; }
+        int get_tile_height(const ImageSpec& ref) const { return tile_height; }
+        int get_tile_depth(const ImageSpec& ref) const { return tile_depth; }
     };
+#else
+    struct LevelInfo;
+    struct LevelSpec {
+        int* overrides;
+        std::bitset<16> fields;
+
+        //! Similar to ImageSpec
+        LevelSpec() {}
+        LevelSpec(const ImageSpec& ref, const ImageSpec& over)
+        {
+            // set the bitmask for each different values
+            fields.set(0, (ref.x != over.x));
+            fields.set(1, (ref.y != over.y));
+            fields.set(2, (ref.z != over.z));
+            fields.set(3, (ref.width != over.width));
+            fields.set(4, (ref.height != over.height));
+            fields.set(5, (ref.depth != over.depth));
+            fields.set(6, (ref.full_x != over.full_x));
+            fields.set(7, (ref.full_y != over.full_y));
+            fields.set(8, (ref.full_z != over.full_z));
+            fields.set(9, (ref.full_width != over.full_width));
+            fields.set(10, (ref.full_height != over.full_height));
+            fields.set(11, (ref.full_depth != over.full_depth));
+            fields.set(12, (ref.tile_width != over.tile_width));
+            fields.set(13, (ref.tile_height != over.tile_height));
+            fields.set(14, (ref.tile_depth != over.tile_depth));
+
+            // allocate the array to the exact required size
+            overrides = new int[fields.count()];
+
+            // fill in the compressed array
+            int p = 0;
+            if (fields.test(0))
+                overrides[p++] = over.x;
+            if (fields.test(1))
+                overrides[p++] = over.y;
+            if (fields.test(2))
+                overrides[p++] = over.z;
+            if (fields.test(3))
+                overrides[p++] = over.width;
+            if (fields.test(4))
+                overrides[p++] = over.height;
+            if (fields.test(5))
+                overrides[p++] = over.depth;
+            if (fields.test(6))
+                overrides[p++] = over.full_x;
+            if (fields.test(7))
+                overrides[p++] = over.full_y;
+            if (fields.test(8))
+                overrides[p++] = over.full_z;
+            if (fields.test(9))
+                overrides[p++] = over.full_width;
+            if (fields.test(10))
+                overrides[p++] = over.full_height;
+            if (fields.test(11))
+                overrides[p++] = over.full_depth;
+            if (fields.test(12))
+                overrides[p++] = over.tile_width;
+            if (fields.test(13))
+                overrides[p++] = over.tile_height;
+            if (fields.test(14))
+                overrides[p++] = over.tile_depth;
+        }
+
+        LevelSpec(const LevelSpec& other)
+            : fields(other.fields)
+        {
+            const int count = fields.count();
+            overrides       = new int[count];
+            for (int i = 0; i < count; ++i)
+                overrides[i] = other.overrides[i];
+        }
+
+        ~LevelSpec() { delete[] overrides; }
+
+        //! Returns true iif all members are identical to the `spec` members of the same name.
+        bool is_same(const ImageSpec& ref, const LevelInfo& lvl) const;
+
+        //! NOTE: the following copies LevelSpec internals to `spec`, contrary to
+        //! `ImageSpec::copy_dimensions` which does the opposite.
+        void copy_dimensions(const ImageSpec& ref, ImageSpec& spec)
+        {
+            spec.x           = get_x(ref);
+            spec.y           = get_y(ref);
+            spec.z           = get_z(ref);
+            spec.width       = get_width(ref);
+            spec.height      = get_height(ref);
+            spec.depth       = get_depth(ref);
+            spec.full_x      = get_full_x(ref);
+            spec.full_y      = get_full_y(ref);
+            spec.full_z      = get_full_z(ref);
+            spec.full_width  = get_full_width(ref);
+            spec.full_height = get_full_height(ref);
+            spec.full_depth  = get_full_depth(ref);
+            spec.tile_width  = get_tile_width(ref);
+            spec.tile_height = get_tile_height(ref);
+            spec.tile_depth  = get_tile_depth(ref);
+        }
+
+        inline int popcnt(int x) const
+        {
+            // make mask from `x`, mask and count bits
+            const int cnt = (fields & std::bitset<16>((1UL << x) - 1)).count();
+            OIIO_DASSERT(cnt >= 0 && cnt < 15);
+            return cnt;
+        }
+
+        inline int get(int i) const
+        {
+            OIIO_DASSERT(i >= 0 && i < 15);
+            return overrides[popcnt(i)];
+        }
+
+        inline int& get(int i)
+        {
+            OIIO_DASSERT(i >= 0 && i < 15);
+            return overrides[popcnt(i)];
+        }
+
+        int get_x(const ImageSpec& ref) const
+        {
+            return fields.test(0) ? get(0) : ref.x;
+        }
+        int get_y(const ImageSpec& ref) const
+        {
+            return fields.test(1) ? get(1) : ref.y;
+        }
+        int get_z(const ImageSpec& ref) const
+        {
+            return fields.test(2) ? get(2) : ref.z;
+        }
+        int get_width(const ImageSpec& ref) const
+        {
+            return fields.test(3) ? get(3) : ref.width;
+        }
+        int get_height(const ImageSpec& ref) const
+        {
+            return fields.test(4) ? get(4) : ref.height;
+        }
+        int get_depth(const ImageSpec& ref) const
+        {
+            return fields.test(5) ? get(5) : ref.depth;
+        }
+        int get_full_x(const ImageSpec& ref) const
+        {
+            return fields.test(6) ? get(6) : ref.full_x;
+        }
+        int get_full_y(const ImageSpec& ref) const
+        {
+            return fields.test(7) ? get(7) : ref.full_y;
+        }
+        int get_full_z(const ImageSpec& ref) const
+        {
+            return fields.test(8) ? get(8) : ref.full_z;
+        }
+        int get_full_width(const ImageSpec& ref) const
+        {
+            return fields.test(9) ? get(9) : ref.full_width;
+        }
+        int get_full_height(const ImageSpec& ref) const
+        {
+            return fields.test(10) ? get(10) : ref.full_height;
+        }
+        int get_full_depth(const ImageSpec& ref) const
+        {
+            return fields.test(11) ? get(11) : ref.full_depth;
+        }
+        int get_tile_width(const ImageSpec& ref) const
+        {
+            return fields.test(12) ? get(12) : ref.tile_width;
+        }
+        int get_tile_height(const ImageSpec& ref) const
+        {
+            return fields.test(13) ? get(13) : ref.tile_height;
+        }
+        int get_tile_depth(const ImageSpec& ref) const
+        {
+            return fields.test(14) ? get(14) : ref.tile_depth;
+        }
+    };
+#endif
 
     /// Info for each MIP level that isn't in the ImageSpec, or that we
     /// precompute.
@@ -354,6 +552,34 @@ public:
         int get_height() const;
         int get_depth() const;
         int get_channels() const;
+
+        inline bool has_one_tile() const
+        {
+            return get_width() <= get_tile_width()
+                   && get_height() <= get_tile_height()
+                   && get_depth() <= get_tile_depth();
+        }
+
+        inline bool has_full_pixel_range() const
+        {
+            return get_x() == get_full_x() && get_y() == get_full_y()
+                   && get_z() == get_full_z() && get_width() == get_full_width()
+                   && get_height() == get_full_height()
+                   && get_depth() == get_full_depth();
+        }
+
+        inline void init_ntiles()
+        {
+            nxtiles = onetile ? 1
+                              : (get_width() + get_tile_width() - 1)
+                                    / get_tile_width();
+            nytiles = onetile ? 1
+                              : (get_height() + get_tile_height() - 1)
+                                    / get_tile_height();
+            nztiles = onetile ? 1
+                              : (get_depth() + get_tile_depth() - 1)
+                                    / get_tile_depth();
+        }
 
         //! The following methods are similar to the ones from ImageSpec.
         //! Underlying evaluation is from either the subimage`m_spec`

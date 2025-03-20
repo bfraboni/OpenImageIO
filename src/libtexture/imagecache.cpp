@@ -214,6 +214,7 @@ ImageCacheStatistics::merge(const ImageCacheStatistics& s)
 
 
 
+#ifdef USE_UNCOMPRESSED_LEVELSPEC
 LevelSpec::LevelSpec()
     : x(0)
     , y(0)
@@ -235,7 +236,7 @@ LevelSpec::LevelSpec()
 
 
 
-LevelSpec::LevelSpec(const ImageSpec& s)
+LevelSpec::LevelSpec(const ImageSpec& r, const ImageSpec& s)
     : x(s.x)
     , y(s.y)
     , z(s.z)
@@ -256,16 +257,56 @@ LevelSpec::LevelSpec(const ImageSpec& s)
 
 
 
-template<typename T>
-bool
-LevelSpec::is_same(const T& s) const
+void
+LevelSpec::copy_dimensions(const ImageSpec& ref, ImageSpec& spec)
 {
-    return x == s.x && y == s.y && z == s.z && width == s.width
-           && height == s.height && depth == s.depth && full_x == s.full_x
-           && full_y == s.full_y && full_z == s.full_z
-           && full_width == s.full_width && full_height == s.full_height
-           && full_depth == s.full_depth && tile_width == s.tile_width
-           && tile_height == s.tile_height && tile_depth == s.tile_depth;
+    spec.x           = get_x(ref);
+    spec.y           = get_y(ref);
+    spec.z           = get_z(ref);
+    spec.width       = get_width(ref);
+    spec.height      = get_height(ref);
+    spec.depth       = get_depth(ref);
+    spec.full_x      = get_full_x(ref);
+    spec.full_y      = get_full_y(ref);
+    spec.full_z      = get_full_z(ref);
+    spec.full_width  = get_full_width(ref);
+    spec.full_height = get_full_height(ref);
+    spec.full_depth  = get_full_depth(ref);
+    spec.tile_width  = get_tile_width(ref);
+    spec.tile_height = get_tile_height(ref);
+    spec.tile_depth  = get_tile_depth(ref);
+}
+#endif
+
+bool
+LevelSpec::is_same(const ImageSpec& ref, const LevelInfo& lvl) const
+{
+    return lvl.get_x() == get_x(ref) && lvl.get_y() == get_y(ref)
+           && lvl.get_z() == get_z(ref) && lvl.get_width() == get_width(ref)
+           && lvl.get_height() == get_height(ref)
+           && lvl.get_depth() == get_depth(ref)
+           && lvl.get_full_x() == get_full_x(ref)
+           && lvl.get_full_y() == get_full_y(ref)
+           && lvl.get_full_z() == get_full_z(ref)
+           && lvl.get_full_width() == get_full_width(ref)
+           && lvl.get_full_height() == get_full_height(ref)
+           && lvl.get_full_depth() == get_full_depth(ref)
+           && lvl.get_tile_width() == get_tile_width(ref)
+           && lvl.get_tile_height() == get_tile_height(ref)
+           && lvl.get_tile_depth() == get_tile_depth(ref);
+}
+
+
+
+static bool
+has_same_dimension(const ImageSpec& a, const ImageSpec& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.width == b.width
+           && a.height == b.height && a.depth == b.depth && a.full_x == b.full_x
+           && a.full_y == b.full_y && a.full_z == b.full_z
+           && a.full_width == b.full_width && a.full_height == b.full_height
+           && a.full_depth == b.full_depth && a.tile_width == b.tile_width
+           && a.tile_height == b.tile_height && a.tile_depth == b.tile_depth;
 }
 
 
@@ -345,104 +386,18 @@ is_same(const ImageSpec& a, const ImageSpec& b)
 
 
 
-imagesize_t
-LevelSpec::tile_pixels() const
-{
-    if (tile_width <= 0 || tile_height <= 0 || tile_depth <= 0)
-        return 0;
-    imagesize_t r = clamped_mult64((imagesize_t)tile_width,
-                                   (imagesize_t)tile_height);
-    if (tile_depth > 1)
-        r = clamped_mult64(r, (imagesize_t)tile_depth);
-    return r;
-}
-
-
-
-imagesize_t
-LevelSpec::image_pixels() const
-{
-    if (width < 0 || height < 0 || depth < 0)
-        return 0;
-    imagesize_t r = clamped_mult64((imagesize_t)width, (imagesize_t)height);
-    if (depth > 1)
-        r = clamped_mult64(r, (imagesize_t)depth);
-    return r;
-}
-
-
-
-void
-LevelSpec::copy_dimensions(ImageSpec& s)
-{
-    s.x           = x;
-    s.y           = y;
-    s.z           = z;
-    s.width       = width;
-    s.height      = height;
-    s.depth       = depth;
-    s.full_x      = full_x;
-    s.full_y      = full_y;
-    s.full_z      = full_z;
-    s.full_width  = full_width;
-    s.full_height = full_height;
-    s.full_depth  = full_depth;
-    s.tile_width  = tile_width;
-    s.tile_height = tile_height;
-    s.tile_depth  = tile_depth;
-}
-
-
-template<typename T>
-static inline bool
-has_one_tile(const T& s)
-{
-    return s.width <= s.tile_width && s.height <= s.tile_height
-           && s.depth <= s.tile_depth;
-}
-
-
-
-template<typename T>
-static inline bool
-has_full_pixel_range(const T& s)
-{
-    return s.x == s.full_x && s.y == s.full_y && s.z == s.full_z
-           && s.width == s.full_width && s.height == s.full_height
-           && s.depth == s.full_depth;
-}
-
-
-
-template<typename T>
-static inline void
-init_ntiles(LevelInfo& lvl, const T& s)
-{
-    lvl.nxtiles = lvl.onetile ? 1 : (s.width + s.tile_width - 1) / s.tile_width;
-    lvl.nytiles = lvl.onetile ? 1
-                              : (s.height + s.tile_height - 1) / s.tile_height;
-    lvl.nztiles = lvl.onetile ? 1 : (s.depth + s.tile_depth - 1) / s.tile_depth;
-}
-
-
-
 LevelInfo::LevelInfo(const std::shared_ptr<ImageSpec>& spec_,
                      const std::shared_ptr<LevelSpec>& levelspec_)
     : m_spec(spec_)
     , m_levelspec(levelspec_)
 {
-    const ImageSpec& spec = get_subimage_spec();
-    full_pixel_range      = m_levelspec ? has_full_pixel_range(*m_levelspec)
-                                        : has_full_pixel_range(spec);
-    onetile = m_levelspec ? has_one_tile(*m_levelspec) : has_one_tile(spec);
+    OIIO_DASSERT(m_spec);
+    full_pixel_range  = has_full_pixel_range();
+    onetile           = has_one_tile();
     polecolorcomputed = false;
 
     // Allocate bit field for which tiles have been read at least once.
-    if (m_levelspec)
-        init_ntiles(*this, *m_levelspec);
-    else
-        init_ntiles(*this, spec);
-
+    init_ntiles();
     int total_tiles = nxtiles * nytiles * nztiles;
     OIIO_DASSERT(total_tiles >= 1);
     const int sz = round_to_multiple(total_tiles, 64) / 64;
@@ -498,7 +453,7 @@ void
 LevelInfo::get_level_dimensions(ImageSpec& spec) const
 {
     if (m_levelspec)
-        m_levelspec->copy_dimensions(spec);
+        m_levelspec->copy_dimensions(get_subimage_spec(), spec);
     else
         spec.copy_dimensions(get_subimage_spec());
 }
@@ -508,7 +463,7 @@ LevelInfo::get_level_dimensions(ImageSpec& spec) const
 int
 LevelInfo::get_full_width() const
 {
-    return m_levelspec ? m_levelspec->full_width
+    return m_levelspec ? m_levelspec->get_full_width(get_subimage_spec())
                        : get_subimage_spec().full_width;
 }
 
@@ -517,7 +472,7 @@ LevelInfo::get_full_width() const
 int
 LevelInfo::get_full_height() const
 {
-    return m_levelspec ? m_levelspec->full_height
+    return m_levelspec ? m_levelspec->get_full_height(get_subimage_spec())
                        : get_subimage_spec().full_height;
 }
 
@@ -526,7 +481,7 @@ LevelInfo::get_full_height() const
 int
 LevelInfo::get_full_depth() const
 {
-    return m_levelspec ? m_levelspec->full_depth
+    return m_levelspec ? m_levelspec->get_full_depth(get_subimage_spec())
                        : get_subimage_spec().full_depth;
 }
 
@@ -535,7 +490,7 @@ LevelInfo::get_full_depth() const
 int
 LevelInfo::get_tile_width() const
 {
-    return m_levelspec ? m_levelspec->tile_width
+    return m_levelspec ? m_levelspec->get_tile_width(get_subimage_spec())
                        : get_subimage_spec().tile_width;
 }
 
@@ -544,7 +499,7 @@ LevelInfo::get_tile_width() const
 int
 LevelInfo::get_tile_height() const
 {
-    return m_levelspec ? m_levelspec->tile_height
+    return m_levelspec ? m_levelspec->get_tile_height(get_subimage_spec())
                        : get_subimage_spec().tile_height;
 }
 
@@ -553,7 +508,7 @@ LevelInfo::get_tile_height() const
 int
 LevelInfo::get_tile_depth() const
 {
-    return m_levelspec ? m_levelspec->tile_depth
+    return m_levelspec ? m_levelspec->get_tile_depth(get_subimage_spec())
                        : get_subimage_spec().tile_depth;
 }
 
@@ -562,7 +517,8 @@ LevelInfo::get_tile_depth() const
 int
 LevelInfo::get_full_x() const
 {
-    return m_levelspec ? m_levelspec->full_x : get_subimage_spec().full_x;
+    return m_levelspec ? m_levelspec->get_full_x(get_subimage_spec())
+                       : get_subimage_spec().full_x;
 }
 
 
@@ -570,7 +526,8 @@ LevelInfo::get_full_x() const
 int
 LevelInfo::get_full_y() const
 {
-    return m_levelspec ? m_levelspec->full_y : get_subimage_spec().full_y;
+    return m_levelspec ? m_levelspec->get_full_y(get_subimage_spec())
+                       : get_subimage_spec().full_y;
 }
 
 
@@ -578,7 +535,8 @@ LevelInfo::get_full_y() const
 int
 LevelInfo::get_full_z() const
 {
-    return m_levelspec ? m_levelspec->full_z : get_subimage_spec().full_z;
+    return m_levelspec ? m_levelspec->get_full_z(get_subimage_spec())
+                       : get_subimage_spec().full_z;
 }
 
 
@@ -586,7 +544,8 @@ LevelInfo::get_full_z() const
 int
 LevelInfo::get_x() const
 {
-    return m_levelspec ? m_levelspec->x : get_subimage_spec().x;
+    return m_levelspec ? m_levelspec->get_x(get_subimage_spec())
+                       : get_subimage_spec().x;
 }
 
 
@@ -594,7 +553,8 @@ LevelInfo::get_x() const
 int
 LevelInfo::get_y() const
 {
-    return m_levelspec ? m_levelspec->y : get_subimage_spec().y;
+    return m_levelspec ? m_levelspec->get_y(get_subimage_spec())
+                       : get_subimage_spec().y;
 }
 
 
@@ -602,7 +562,8 @@ LevelInfo::get_y() const
 int
 LevelInfo::get_z() const
 {
-    return m_levelspec ? m_levelspec->z : get_subimage_spec().z;
+    return m_levelspec ? m_levelspec->get_z(get_subimage_spec())
+                       : get_subimage_spec().z;
 }
 
 
@@ -610,7 +571,8 @@ LevelInfo::get_z() const
 int
 LevelInfo::get_width() const
 {
-    return m_levelspec ? m_levelspec->width : get_subimage_spec().width;
+    return m_levelspec ? m_levelspec->get_width(get_subimage_spec())
+                       : get_subimage_spec().width;
 }
 
 
@@ -618,7 +580,8 @@ LevelInfo::get_width() const
 int
 LevelInfo::get_height() const
 {
-    return m_levelspec ? m_levelspec->height : get_subimage_spec().height;
+    return m_levelspec ? m_levelspec->get_height(get_subimage_spec())
+                       : get_subimage_spec().height;
 }
 
 
@@ -626,7 +589,8 @@ LevelInfo::get_height() const
 int
 LevelInfo::get_depth() const
 {
-    return m_levelspec ? m_levelspec->depth : get_subimage_spec().depth;
+    return m_levelspec ? m_levelspec->get_depth(get_subimage_spec())
+                       : get_subimage_spec().depth;
 }
 
 
@@ -642,8 +606,14 @@ LevelInfo::get_channels() const
 imagesize_t
 LevelInfo::get_tile_pixels() const
 {
-    return m_levelspec ? m_levelspec->tile_pixels()
-                       : get_subimage_spec().tile_pixels();
+    if (get_tile_width() <= 0 || get_tile_height() <= 0
+        || get_tile_depth() <= 0)
+        return 0;
+    imagesize_t r = clamped_mult64((imagesize_t)get_tile_width(),
+                                   (imagesize_t)get_tile_height());
+    if (get_tile_depth() > 1)
+        r = clamped_mult64(r, (imagesize_t)get_tile_depth());
+    return r;
 }
 
 
@@ -691,8 +661,13 @@ LevelInfo::get_scanline_bytes() const
 imagesize_t
 LevelInfo::get_image_pixels() const
 {
-    return m_levelspec ? m_levelspec->image_pixels()
-                       : get_subimage_spec().image_pixels();
+    if (get_width() < 0 || get_height() < 0 || get_depth() < 0)
+        return 0;
+    imagesize_t r = clamped_mult64((imagesize_t)get_width(),
+                                   (imagesize_t)get_height());
+    if (get_depth() > 1)
+        r = clamped_mult64(r, (imagesize_t)get_depth());
+    return r;
 }
 
 
@@ -805,6 +780,16 @@ ImageCacheFile::set_imageinput(std::shared_ptr<ImageInput> newval)
 #endif
     if (oldval)
         imagecache().decr_open_files();
+}
+
+
+
+static inline bool
+has_full_pixel_range(const ImageSpec& spec)
+{
+    return spec.x == spec.full_x && spec.y == spec.full_y
+           && spec.z == spec.full_z && spec.width == spec.full_width
+           && spec.height == spec.full_height && spec.depth == spec.full_depth;
 }
 
 
@@ -1076,12 +1061,14 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
             // ImageCache can't store differing formats per channel
             tempspec.channelformats.clear();
             // Each mip level stores only the fields that differ from the native spec
-            LevelSpec levelspec(tempspec);
             OIIO_DASSERT(si.m_spec);
-            if (levelspec.is_same(*si.m_spec)) {
+            if (has_same_dimension(*si.m_spec, tempspec)) {
                 LevelInfo levelinfo(si.m_spec);
                 si.levels.push_back(levelinfo);
             } else {
+                // create LevelSpec from subimage reference spec and overrides tempspec
+                LevelSpec levelspec(*si.m_spec, tempspec);
+
                 // next we try to deduplicate LevelSpec across subimages:
                 // i.e. we check if the previous subimage at the same mip level
                 // has an allocated LevelSpec and has the same dimensions
@@ -1089,7 +1076,7 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                 if (enable_level_spec_reuse && nsubimages > 0
                     && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                     const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
-                    if (lvl.m_levelspec && levelspec.is_same(*lvl.m_levelspec))
+                    if (lvl.m_levelspec && levelspec.is_same(*si.m_spec, lvl))
                         tmp = lvl.m_levelspec;
                 }
                 // if we cannot reuse a previously allocated LevelSpec, just create one
@@ -1142,12 +1129,14 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                     s.tile_depth  = d;
                 }
                 ++nmip;
-                LevelSpec levelspec(s);
                 OIIO_DASSERT(si.m_spec);
-                if (levelspec.is_same(*si.m_spec)) {
+                if (has_same_dimension(*si.m_spec, s)) {
                     LevelInfo levelinfo(si.m_spec);
                     si.levels.push_back(levelinfo);
                 } else {
+                    // create LevelSpec from subimage reference spec and overrides tempspec
+                    LevelSpec levelspec(*si.m_spec, s);
+
                     // next we try to deduplicate LevelSpec across subimages:
                     // i.e. we check if the previous subimage at the same mip level
                     // has an allocated LevelSpec and has the same dimensions
@@ -1156,7 +1145,7 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                         && nmip < subimageinfo(nsubimages - 1).miplevels()) {
                         const LevelInfo& lvl(levelinfo(nsubimages - 1, nmip));
                         if (lvl.m_levelspec
-                            && levelspec.is_same(*lvl.m_levelspec))
+                            && levelspec.is_same(*si.m_spec, lvl))
                             tmp = lvl.m_levelspec;
                     }
                     // if we cannot reuse a previously allocated LevelSpec, just create one
@@ -1237,6 +1226,8 @@ ImageCacheFile::init_from_spec()
         if (m_texformat == TexFormatTexture) {
             for (int s = 0; s < subimages(); ++s) {
                 for (int m = 0; m < miplevels(s); ++m) {
+                    LevelInfo& lvl(this->levelinfo(s, m));
+#ifdef USE_UNCOMPRESSED_LEVELSPEC
                     // helper to allocate or reallocate level spec for the mip level
                     // before doing any modification
                     auto create_or_update_levelspec = [](LevelInfo& l,
@@ -1245,6 +1236,7 @@ ImageCacheFile::init_from_spec()
                         if (!l.m_levelspec) {
                             f.m_levelinfo_specs.emplace_back(
                                 std::make_shared<LevelSpec>(
+                                    l.get_subimage_spec(),
                                     l.get_subimage_spec()));
                             l.m_levelspec = f.m_levelinfo_specs.back();
                         }
@@ -1255,8 +1247,6 @@ ImageCacheFile::init_from_spec()
                             l.m_levelspec = f.m_levelinfo_specs.back();
                         }
                     };
-
-                    LevelInfo& lvl(this->levelinfo(s, m));
 
                     if (lvl.get_full_width() > lvl.get_width()) {
                         const int w = lvl.get_width();
@@ -1275,6 +1265,49 @@ ImageCacheFile::init_from_spec()
                         create_or_update_levelspec(lvl, *this);
                         lvl.m_levelspec->full_depth = d;
                     }
+#else
+                    if (lvl.get_full_width() > lvl.get_width()) {
+                        // create empty spec and copy current dimensions
+                        ImageSpec newspec;
+                        lvl.get_level_dimensions(newspec);
+
+                        // override full width
+                        newspec.full_width = lvl.get_width();
+
+                        // allocate a new levelspec
+                        this->m_levelinfo_specs.emplace_back(
+                            std::make_shared<LevelSpec>(*lvl.m_spec, newspec));
+                        lvl.m_levelspec = this->m_levelinfo_specs.back();
+                    }
+
+                    if (lvl.get_full_height() > lvl.get_height()) {
+                        // create empty spec and copy current dimensions
+                        ImageSpec newspec;
+                        lvl.get_level_dimensions(newspec);
+
+                        // override full height
+                        newspec.full_height = lvl.get_height();
+
+                        // allocate a new levelspec
+                        this->m_levelinfo_specs.emplace_back(
+                            std::make_shared<LevelSpec>(*lvl.m_spec, newspec));
+                        lvl.m_levelspec = this->m_levelinfo_specs.back();
+                    }
+
+                    if (lvl.get_full_depth() > lvl.get_depth()) {
+                        // create empty spec and copy current dimensions
+                        ImageSpec newspec;
+                        lvl.get_level_dimensions(newspec);
+
+                        // override full depth
+                        newspec.full_depth = lvl.get_depth();
+
+                        // allocate a new levelspec
+                        this->m_levelinfo_specs.emplace_back(
+                            std::make_shared<LevelSpec>(*lvl.m_spec, newspec));
+                        lvl.m_levelspec = this->m_levelinfo_specs.back();
+                    }
+#endif
                 }
             }
         }
