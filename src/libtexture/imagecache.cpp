@@ -1165,6 +1165,7 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
                     s.tile_height = h;
                     s.tile_depth  = d;
                 }
+                ++nmip;
                 OIIO_DASSERT(sispec);
                 if (has_same_dimension(*sispec, s)) {
                     LevelInfo levelinfo(sispec);
