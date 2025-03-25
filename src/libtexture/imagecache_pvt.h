@@ -184,10 +184,7 @@ public:
         subimageinfo(subimage).get_cache_dimensions(miplevel, spec);
     }
 
-    ImageSpec& spec(int subimage)
-    {
-        return subimageinfo(subimage).spec();
-    }
+    ImageSpec& spec(int subimage) { return subimageinfo(subimage).spec(); }
 
     const ImageSpec& spec(int subimage) const
     {
@@ -269,7 +266,7 @@ public:
 
     //! LevelSpec is a minified ImageSpec to describe a miplevel image in the ImageCache.
     //! It holds fields that can differ from the ImageSpec of the associated subimage.
-#define USE_UNCOMPRESSED_LEVELSPEC
+// #define USE_UNCOMPRESSED_LEVELSPEC
 #ifdef USE_UNCOMPRESSED_LEVELSPEC
     struct LevelSpec {
         //! fields that can change for each miplevel
@@ -293,11 +290,12 @@ public:
         //! Similar to ImageSpec
         LevelSpec();
         LevelSpec(const LevelSpec& other) = default;
-        LevelSpec(const ImageSpec& ref, const ImageSpec& levelspec);  /// copy members from ImageSpec
+        LevelSpec(const ImageSpec& ref,
+                  const ImageSpec& levelspec);  /// copy members from ImageSpec
 
         //! NOTE: the following copies LevelSpec internals to `spec`, contrary to
         //! `ImageSpec::copy_dimensions` which does the opposite.
-        void copy_dimensions(ImageSpec& spec)
+        void copy_dimensions(ImageSpec& spec) const
         {
             get_x(spec.x);
             get_y(spec.y);
@@ -316,24 +314,83 @@ public:
             get_tile_depth(spec.tile_depth);
         }
 
-        bool get_x(int& ret) const { ret = x; return true; }
-        bool get_y(int& ret) const { ret = y; return true; }
-        bool get_z(int& ret) const { ret = z; return true; }
-        bool get_width(int& ret) const { ret = width; return true; }
-        bool get_height(int& ret) const { ret = height; return true; }
-        bool get_depth(int& ret) const { ret = depth; return true; }
-        bool get_full_x(int& ret) const { ret = full_x; return true; }
-        bool get_full_y(int& ret) const { ret = full_y; return true; }
-        bool get_full_z(int& ret) const { ret = full_z; return true; }
-        bool get_full_width(int& ret) const { ret = full_width; return true; }
-        bool get_full_height(int& ret) const { ret = full_height; return true; }
-        bool get_full_depth(int& ret) const { ret = full_depth; return true; }
-        bool get_tile_width(int& ret) const { ret = tile_width; return true; }
-        bool get_tile_height(int& ret) const { ret = tile_height; return true; }
-        bool get_tile_depth(int& ret) const { ret = tile_depth; return true; }
+        bool get_x(int& ret) const
+        {
+            ret = x;
+            return true;
+        }
+        bool get_y(int& ret) const
+        {
+            ret = y;
+            return true;
+        }
+        bool get_z(int& ret) const
+        {
+            ret = z;
+            return true;
+        }
+        bool get_width(int& ret) const
+        {
+            ret = width;
+            return true;
+        }
+        bool get_height(int& ret) const
+        {
+            ret = height;
+            return true;
+        }
+        bool get_depth(int& ret) const
+        {
+            ret = depth;
+            return true;
+        }
+        bool get_full_x(int& ret) const
+        {
+            ret = full_x;
+            return true;
+        }
+        bool get_full_y(int& ret) const
+        {
+            ret = full_y;
+            return true;
+        }
+        bool get_full_z(int& ret) const
+        {
+            ret = full_z;
+            return true;
+        }
+        bool get_full_width(int& ret) const
+        {
+            ret = full_width;
+            return true;
+        }
+        bool get_full_height(int& ret) const
+        {
+            ret = full_height;
+            return true;
+        }
+        bool get_full_depth(int& ret) const
+        {
+            ret = full_depth;
+            return true;
+        }
+        bool get_tile_width(int& ret) const
+        {
+            ret = tile_width;
+            return true;
+        }
+        bool get_tile_height(int& ret) const
+        {
+            ret = tile_height;
+            return true;
+        }
+        bool get_tile_depth(int& ret) const
+        {
+            ret = tile_depth;
+            return true;
+        }
     };
 #else
-    struct LevelInfo;
     struct LevelSpec {
         int* overrides;
         std::bitset<16> fields;
@@ -360,7 +417,8 @@ public:
             fields.set(14, (ref.tile_depth != over.tile_depth));
 
             // allocate the array to the exact required size
-            overrides = new int[fields.count()];
+            const int count = fields.count();
+            overrides       = new int[count];
 
             // fill in the compressed array
             int p = 0;
@@ -394,6 +452,7 @@ public:
                 overrides[p++] = over.tile_height;
             if (fields.test(14))
                 overrides[p++] = over.tile_depth;
+            OIIO_DASSERT(p == count);
         }
 
         LevelSpec(const LevelSpec& other)
@@ -407,12 +466,9 @@ public:
 
         ~LevelSpec() { delete[] overrides; }
 
-        //! Returns true iif all members are identical to the `spec` members of the same name.
-        // bool is_same(const ImageSpec& ref, const LevelInfo& lvl) const;
-
         //! NOTE: the following copies LevelSpec internals to `spec`, contrary to
         //! `ImageSpec::copy_dimensions` which does the opposite.
-        void copy_dimensions(ImageSpec& spec)
+        void copy_dimensions(ImageSpec& spec) const
         {
             get_x(spec.x);
             get_y(spec.y);
@@ -451,108 +507,114 @@ public:
             return overrides[popcnt(i)];
         }
 
+        inline bool check(int i) const
+        {
+            OIIO_DASSERT(i >= 0 && i < 15);
+            return fields.test(i);
+        }
+
         bool get_x(int& ret) const
         {
             const bool test = fields.test(0);
-            if(test)
+            if (test)
                 ret = get(0);
             return test;
         }
         bool get_y(int& ret) const
         {
             const bool test = fields.test(1);
-            if(test)
+            if (test)
                 ret = get(1);
             return test;
         }
         bool get_z(int& ret) const
         {
             const bool test = fields.test(2);
-            if(test)
+            if (test)
                 ret = get(2);
             return test;
         }
         bool get_width(int& ret) const
         {
             const bool test = fields.test(3);
-            if(test)
+            if (test)
                 ret = get(3);
             return test;
         }
         bool get_height(int& ret) const
         {
             const bool test = fields.test(4);
-            if(test)
+            if (test)
                 ret = get(4);
             return test;
         }
         bool get_depth(int& ret) const
         {
             const bool test = fields.test(5);
-            if(test)
+            if (test)
                 ret = get(5);
             return test;
         }
         bool get_full_x(int& ret) const
         {
             const bool test = fields.test(6);
-            if(test)
+            if (test)
                 ret = get(6);
             return test;
         }
         bool get_full_y(int& ret) const
         {
             const bool test = fields.test(7);
-            if(test)
+            if (test)
                 ret = get(7);
             return test;
         }
         bool get_full_z(int& ret) const
         {
             const bool test = fields.test(8);
-            if(test)
+            if (test)
                 ret = get(8);
             return test;
         }
         bool get_full_width(int& ret) const
         {
             const bool test = fields.test(9);
-            if(test)
+            if (test)
                 ret = get(9);
             return test;
         }
         bool get_full_height(int& ret) const
         {
             const bool test = fields.test(10);
-            if(test)
+            if (test)
                 ret = get(10);
             return test;
         }
         bool get_full_depth(int& ret) const
         {
             const bool test = fields.test(11);
-            if(test)
+            if (test)
                 ret = get(11);
             return test;
         }
         bool get_tile_width(int& ret) const
         {
             const bool test = fields.test(12);
-            if(test)
+            if (test)
                 ret = get(12);
             return test;
         }
         bool get_tile_height(int& ret) const
         {
             const bool test = fields.test(13);
-            if(test)
+            if (test)
                 ret = get(13);
             return test;
         }
         bool get_tile_depth(int& ret) const
         {
             const bool test = fields.test(14);
-            if(test)
+            if (test)
                 ret = get(14);
             return test;
         }
@@ -562,18 +624,18 @@ public:
     /// Info for each MIP level that isn't in the ImageSpec, or that we
     /// precompute.
     struct LevelInfo {
-        std::shared_ptr<LevelSpec> m_levelspec;  ///< Extra level info in case they are different from the subimage spec
+        LevelSpec*
+            m_levelspec;  ///< Extra level info in case they are different from the subimage spec
         std::unique_ptr<float[]> polecolor;  ///< Pole colors
         atomic_ll* tiles_read;  ///< Bitfield for tiles read at least once
-        int nxtiles, nytiles, nztiles; ///< Number of tiles in each dimension
-        uint16_t nchannels;         ///< Number of channels in the image
-        bool full_pixel_range : 1;  ///< pixel data window matches image window
-        bool onetile : 1;           ///< Whole level fits on one tile
+        int nxtiles, nytiles, nztiles;  ///< Number of tiles in each dimension
+        uint16_t nchannels;             ///< Number of channels in the image
+        bool full_pixel_range : 1;   ///< pixel data window matches image window
+        bool onetile : 1;            ///< Whole level fits on one tile
         bool polecolorcomputed : 1;  ///< Pole color was computed
 
-        LevelInfo(const std::shared_ptr<ImageSpec>& spec,
-                  const std::shared_ptr<LevelSpec>& levelspec);
-        LevelInfo(const std::shared_ptr<ImageSpec>& spec)
+        LevelInfo(ImageSpec* spec, LevelSpec* levelspec);
+        LevelInfo(ImageSpec* spec)
             : LevelInfo(spec, nullptr)
         {
         }
@@ -582,38 +644,174 @@ public:
         ~LevelInfo() { delete[] tiles_read; }
 
         //! returns the value from LevelSpec if present otherwise returns the fallback value
-        int get_full_width(const int& fallback) const { int val; if (get_full_width(val)) return val; return fallback; }
-        int get_full_height(const int& fallback) const { int val; if (get_full_height(val)) return val; return fallback; }
-        int get_full_depth(const int& fallback) const { int val; if (get_full_depth(val)) return val; return fallback; }
-        int get_tile_width(const int& fallback) const { int val; if (get_tile_width(val)) return val; return fallback; }
-        int get_tile_height(const int& fallback) const { int val; if (get_tile_height(val)) return val; return fallback; }
-        int get_tile_depth(const int& fallback) const { int val; if (get_tile_depth(val)) return val; return fallback; }
-        int get_full_x(const int& fallback) const { int val; if (get_full_x(val)) return val; return fallback; }
-        int get_full_y(const int& fallback) const { int val; if (get_full_y(val)) return val; return fallback; }
-        int get_full_z(const int& fallback) const { int val; if (get_full_z(val)) return val; return fallback; }
-        int get_x(const int& fallback) const { int val; if (get_x(val)) return val; return fallback; }
-        int get_y(const int& fallback) const { int val; if (get_y(val)) return val; return fallback; }
-        int get_z(const int& fallback) const { int val; if (get_z(val)) return val; return fallback; }
-        int get_width(const int& fallback) const { int val; if (get_width(val)) return val; return fallback; }
-        int get_height(const int& fallback) const { int val; if (get_height(val)) return val; return fallback; }
-        int get_depth(const int& fallback) const { int val; if (get_depth(val)) return val; return fallback; }
-private:
+        int get_full_width(const int& fallback) const
+        {
+            int val;
+            if (get_full_width(val))
+                return val;
+            return fallback;
+        }
+        int get_full_height(const int& fallback) const
+        {
+            int val;
+            if (get_full_height(val))
+                return val;
+            return fallback;
+        }
+        int get_full_depth(const int& fallback) const
+        {
+            int val;
+            if (get_full_depth(val))
+                return val;
+            return fallback;
+        }
+        int get_tile_width(const int& fallback) const
+        {
+            int val;
+            if (get_tile_width(val))
+                return val;
+            return fallback;
+        }
+        int get_tile_height(const int& fallback) const
+        {
+            int val;
+            if (get_tile_height(val))
+                return val;
+            return fallback;
+        }
+        int get_tile_depth(const int& fallback) const
+        {
+            int val;
+            if (get_tile_depth(val))
+                return val;
+            return fallback;
+        }
+        int get_full_x(const int& fallback) const
+        {
+            int val;
+            if (get_full_x(val))
+                return val;
+            return fallback;
+        }
+        int get_full_y(const int& fallback) const
+        {
+            int val;
+            if (get_full_y(val))
+                return val;
+            return fallback;
+        }
+        int get_full_z(const int& fallback) const
+        {
+            int val;
+            if (get_full_z(val))
+                return val;
+            return fallback;
+        }
+        int get_x(const int& fallback) const
+        {
+            int val;
+            if (get_x(val))
+                return val;
+            return fallback;
+        }
+        int get_y(const int& fallback) const
+        {
+            int val;
+            if (get_y(val))
+                return val;
+            return fallback;
+        }
+        int get_z(const int& fallback) const
+        {
+            int val;
+            if (get_z(val))
+                return val;
+            return fallback;
+        }
+        int get_width(const int& fallback) const
+        {
+            int val;
+            if (get_width(val))
+                return val;
+            return fallback;
+        }
+        int get_height(const int& fallback) const
+        {
+            int val;
+            if (get_height(val))
+                return val;
+            return fallback;
+        }
+        int get_depth(const int& fallback) const
+        {
+            int val;
+            if (get_depth(val))
+                return val;
+            return fallback;
+        }
+
+    private:
         //! returns true is the value is present in the LevelSpec and copy value to ret; otherwise returns false
-        bool get_full_width(int& ret) const { return m_levelspec ? m_levelspec->get_full_width(ret) : false; }
-        bool get_full_height(int& ret) const { return m_levelspec ? m_levelspec->get_full_height(ret) : false; }
-        bool get_full_depth(int& ret) const { return m_levelspec ? m_levelspec->get_full_depth(ret) : false; }
-        bool get_tile_width(int& ret) const { return m_levelspec ? m_levelspec->get_tile_width(ret) : false; }
-        bool get_tile_height(int& ret) const { return m_levelspec ? m_levelspec->get_tile_height(ret) : false; }
-        bool get_tile_depth(int& ret) const { return m_levelspec ? m_levelspec->get_tile_depth(ret) : false; }
-        bool get_full_x(int& ret) const { return m_levelspec ? m_levelspec->get_full_x(ret) : false; }
-        bool get_full_y(int& ret) const { return m_levelspec ? m_levelspec->get_full_y(ret) : false; }
-        bool get_full_z(int& ret) const { return m_levelspec ? m_levelspec->get_full_z(ret) : false; }
-        bool get_x(int& ret) const { return m_levelspec ? m_levelspec->get_x(ret) : false; }
-        bool get_y(int& ret) const { return m_levelspec ? m_levelspec->get_y(ret) : false; }
-        bool get_z(int& ret) const { return m_levelspec ? m_levelspec->get_z(ret) : false; }
-        bool get_width(int& ret) const { return m_levelspec ? m_levelspec->get_width(ret) : false; }
-        bool get_height(int& ret) const { return m_levelspec ? m_levelspec->get_height(ret) : false; }
-        bool get_depth(int& ret) const { return m_levelspec ? m_levelspec->get_depth(ret) : false; }
+        bool get_full_width(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_width(ret) : false;
+        }
+        bool get_full_height(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_height(ret) : false;
+        }
+        bool get_full_depth(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_depth(ret) : false;
+        }
+        bool get_tile_width(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_tile_width(ret) : false;
+        }
+        bool get_tile_height(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_tile_height(ret) : false;
+        }
+        bool get_tile_depth(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_tile_depth(ret) : false;
+        }
+        bool get_full_x(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_x(ret) : false;
+        }
+        bool get_full_y(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_y(ret) : false;
+        }
+        bool get_full_z(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_full_z(ret) : false;
+        }
+        bool get_x(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_x(ret) : false;
+        }
+        bool get_y(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_y(ret) : false;
+        }
+        bool get_z(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_z(ret) : false;
+        }
+        bool get_width(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_width(ret) : false;
+        }
+        bool get_height(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_height(ret) : false;
+        }
+        bool get_depth(int& ret) const
+        {
+            return m_levelspec ? m_levelspec->get_depth(ret) : false;
+        }
     };
 
     /// Info for each subimage
@@ -642,26 +840,25 @@ private:
         int min_mip_level = 0;         // Start with this MIP
         std::unique_ptr<int[]> minwh;  // min(width,height) for each MIP level
         ustring subimagename;
-        std::shared_ptr<ImageSpec> m_spec;
+        ImageSpec* m_spec;
 
         SubimageInfo() {}
-        void init(ImageCacheFile& icfile,
-                  const std::shared_ptr<ImageSpec>& spec, bool forcefloat);
+        void init(ImageCacheFile& icfile, ImageSpec* spec, bool forcefloat);
         int miplevels() const { return (int)levels.size(); }
 
         void get_cache_dimensions(int m, ImageSpec& s) const
         {
             OIIO_DASSERT(miplevels() > m);
-        #ifdef USE_UNCOMPRESSED_LEVELSPEC
+#ifdef USE_UNCOMPRESSED_LEVELSPEC
             if (levelinfo(m).m_levelspec)
                 levelinfo(m).m_levelspec->copy_dimensions(s);
             else
                 s.copy_dimensions(spec());
-        #else
-            spec.copy_dimensions(spec());
+#else
+            s.copy_dimensions(spec());
             if (levelinfo(m).m_levelspec)
-                levelinfo(m).m_levelspec->copy_dimensions(spec);
-        #endif
+                levelinfo(m).m_levelspec->copy_dimensions(s);
+#endif
         }
 
         ImageSpec& spec()
@@ -688,7 +885,7 @@ private:
 
         //! SubimageInfo stores the reference ImageSpec
         //! LevelInfo stores the fields that differ from the reference in LevelSpec
-        //! These getter internally check where is the required value stored 
+        //! These getter internally check where is the required value stored
         int get_full_width(int m) const
         {
             return levelinfo(m).get_full_width(spec().full_width);
@@ -725,18 +922,9 @@ private:
         {
             return levelinfo(m).get_full_z(spec().full_z);
         }
-        int get_x(int m) const
-        {
-            return levelinfo(m).get_x(spec().x);
-        }
-        int get_y(int m) const
-        {
-            return levelinfo(m).get_y(spec().y);
-        }
-        int get_z(int m) const
-        {
-            return levelinfo(m).get_z(spec().z);
-        }
+        int get_x(int m) const { return levelinfo(m).get_x(spec().x); }
+        int get_y(int m) const { return levelinfo(m).get_y(spec().y); }
+        int get_z(int m) const { return levelinfo(m).get_z(spec().z); }
         int get_width(int m) const
         {
             return levelinfo(m).get_width(spec().width);
@@ -756,12 +944,17 @@ private:
         }
 
         bool has_one_tile(int m) const { return levelinfo(m).onetile; }
-        bool has_full_pixel_range(int m) const { return levelinfo(m).full_pixel_range; }
+        bool has_full_pixel_range(int m) const
+        {
+            return levelinfo(m).full_pixel_range;
+        }
         bool has_full_pixel_range() const
         {
             return spec().x == spec().full_x && spec().y == spec().full_y
-                && spec().z == spec().full_z && spec().width == spec().full_width
-                && spec().height == spec().full_height && spec().depth == spec().full_depth;
+                   && spec().z == spec().full_z
+                   && spec().width == spec().full_width
+                   && spec().height == spec().full_height
+                   && spec().depth == spec().full_depth;
         }
 
         //! The following methods are similar to the ones from ImageSpec.
@@ -773,7 +966,7 @@ private:
                 || get_tile_depth(m) <= 0)
                 return 0;
             imagesize_t r = clamped_mult64((imagesize_t)get_tile_width(m),
-                                        (imagesize_t)get_tile_height(m));
+                                           (imagesize_t)get_tile_height(m));
             if (get_tile_depth(m) > 1)
                 r = clamped_mult64(r, (imagesize_t)get_tile_depth(m));
             return r;
@@ -789,32 +982,35 @@ private:
             // could get rid of the condition
             if (get_channels(m) <= 0)
                 return 0;
-            return clamped_mult32((size_t)get_channels(m), get_channel_bytes(m));
+            return clamped_mult32((size_t)get_channels(m),
+                                  get_channel_bytes(m));
         }
         imagesize_t get_tile_bytes(int m) const
         {
-            return clamped_mult64(get_tile_pixels(m), (imagesize_t)get_pixel_bytes(m));
+            return clamped_mult64(get_tile_pixels(m),
+                                  (imagesize_t)get_pixel_bytes(m));
         }
         imagesize_t get_scanline_bytes(int m) const
         {
             if (get_width(m) < 0)
                 return 0;
             return clamped_mult64((imagesize_t)get_width(m),
-                                (imagesize_t)get_pixel_bytes(m));
+                                  (imagesize_t)get_pixel_bytes(m));
         }
         imagesize_t get_image_pixels(int m) const
         {
             if (get_width(m) < 0 || get_height(m) < 0 || get_depth(m) < 0)
                 return 0;
             imagesize_t r = clamped_mult64((imagesize_t)get_width(m),
-                                        (imagesize_t)get_height(m));
+                                           (imagesize_t)get_height(m));
             if (get_depth(m) > 1)
                 r = clamped_mult64(r, (imagesize_t)get_depth(m));
             return r;
         }
         imagesize_t get_image_bytes(int m) const
         {
-            return clamped_mult64(get_image_pixels(m), (imagesize_t)get_pixel_bytes(m));
+            return clamped_mult64(get_image_pixels(m),
+                                  (imagesize_t)get_pixel_bytes(m));
         }
     };
 

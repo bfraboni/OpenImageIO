@@ -477,8 +477,8 @@ TextureSystemImpl::environment(TextureHandle* texture_handle_,
             // Filters are in radians, and the vertical resolution of a
             // latlong map is PI radians.  So to compute the raster size of
             // our filter width...
-            float filtwidth_ras = subinfo.get_full_height(m)
-                                  * filtwidth * M_1_PI;
+            float filtwidth_ras = subinfo.get_full_height(m) * filtwidth
+                                  * M_1_PI;
             // Once the filter width is smaller than one texel at this level,
             // we've gone too far, so we know that we want to interpolate the
             // previous level and the current level.  Note that filtwidth_ras

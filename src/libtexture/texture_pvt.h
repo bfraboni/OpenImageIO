@@ -400,9 +400,8 @@ public:
     /// sample position, and ifrac and jfrac are the fractional (0-1)
     /// portion of the way to the next texel to the right or down,
     /// respectively.
-    void st_to_texel(float s, float t, TextureFile& texturefile,
-                     int subimage, int miplevel, int& i, int& j,
-                     float& ifrac, float& jfrac);
+    void st_to_texel(float s, float t, TextureFile& texturefile, int subimage,
+                     int miplevel, int& i, int& j, float& ifrac, float& jfrac);
 
     /// Called when the requested texture is missing, fills in the
     /// results.
@@ -422,9 +421,8 @@ public:
     /// pixel that's the average of all of row y.  This will only be
     /// called for levels where the whole mipmap level fits on one tile.
     const float* pole_color(TextureFile& texturefile,
-                            PerThreadInfo* thread_info,
-                            TileRef& tile, int subimage, int miplevel,
-                            int pole);
+                            PerThreadInfo* thread_info, TileRef& tile,
+                            int subimage, int miplevel, int pole);
     /// Helper function for lat-long environment maps: called near pole
     /// regions, this figures out the average pole color and fades to it
     /// right at the pole, and also adjusts weight so that the regular
@@ -524,8 +522,8 @@ TextureSystemImpl::anisotropic_aspect(float& majorlength, float& minorlength,
 
 inline void
 TextureSystemImpl::st_to_texel(float s, float t, TextureFile& texturefile,
-                               int subimage, int miplevel, int& i,
-                               int& j, float& ifrac, float& jfrac)
+                               int subimage, int miplevel, int& i, int& j,
+                               float& ifrac, float& jfrac)
 {
     const TextureFile::SubimageInfo& si(texturefile.subimageinfo(subimage));
     // As passed in, (s,t) map the texture to (0,1).  Remap to texel coords.

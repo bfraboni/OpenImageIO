@@ -38,7 +38,7 @@
 OIIO_NAMESPACE_BEGIN
 using namespace pvt;
 using namespace simd;
-using LevelInfo = ImageCacheFile::LevelInfo;
+using LevelInfo    = ImageCacheFile::LevelInfo;
 using SubimageInfo = ImageCacheFile::SubimageInfo;
 
 namespace {  // anonymous
@@ -1193,8 +1193,7 @@ TextureSystemImpl::get_texels(TextureHandle* texture_handle_,
     // doing anything more complicated (not to mention bug-prone) until
     // somebody reports this routine as being a bottleneck.
     int nchannels      = chend - chbegin;
-    int actualchannels = OIIO::clamp(si.get_channels() - chbegin, 0,
-                                     nchannels);
+    int actualchannels = OIIO::clamp(si.get_channels() - chbegin, 0, nchannels);
     int tile_chbegin = 0, tile_chend = si.get_channels();
     if (si.get_channels() > m_max_tile_channels) {
         // For files with many channels, narrow the range we cache
@@ -1217,23 +1216,30 @@ TextureSystemImpl::get_texels(TextureHandle* texture_handle_,
             result = (void*)((char*)result + zplanesize);
             continue;
         }
-        tileid.z(z - ((z - si.get_z(miplevel)) % std::max(1, si.get_tile_depth(miplevel))));
+        tileid.z(z
+                 - ((z - si.get_z(miplevel))
+                    % std::max(1, si.get_tile_depth(miplevel))));
         for (int y = ybegin; y < yend; ++y) {
-            if (y < si.get_y(miplevel) || y >= (si.get_y(miplevel) + si.get_height(miplevel))) {
+            if (y < si.get_y(miplevel)
+                || y >= (si.get_y(miplevel) + si.get_height(miplevel))) {
                 // nonexistent scanlines
                 memset(result, 0, scanlinesize);
                 result = (void*)((char*)result + scanlinesize);
                 continue;
             }
-            tileid.y(y - ((y - si.get_y(miplevel)) % si.get_tile_height(miplevel)));
+            tileid.y(
+                y - ((y - si.get_y(miplevel)) % si.get_tile_height(miplevel)));
             for (int x = xbegin; x < xend; ++x, ++npixelsread) {
-                if (x < si.get_x(miplevel) || x >= (si.get_x(miplevel) + si.get_width(miplevel))) {
+                if (x < si.get_x(miplevel)
+                    || x >= (si.get_x(miplevel) + si.get_width(miplevel))) {
                     // nonexistent columns
                     memset(result, 0, formatpixelsize);
                     result = (void*)((char*)result + formatpixelsize);
                     continue;
                 }
-                tileid.x(x - ((x - si.get_x(miplevel)) % si.get_tile_width(miplevel)));
+                tileid.x(
+                    x
+                    - ((x - si.get_x(miplevel)) % si.get_tile_width(miplevel)));
                 ok &= find_tile(tileid, thread_info, npixelsread == 0);
                 TileRef& tile(thread_info->tile);
                 const char* data;
@@ -1903,8 +1909,7 @@ compute_miplevels(TextureSystemImpl::TextureFile& texturefile,
         // ratio that implies a huge nsamples, which is pointless if those
         // samples are too close.  So if minorlength is less than 1/2 texel
         // at the finest resolution, clamp it and recalculate aspect.
-        int r = std::max(si.spec().full_width,
-                         si.spec().full_height);
+        int r = std::max(si.spec().full_width, si.spec().full_height);
         if (minorlength * r < 0.5f) {
             aspect = OIIO::clamp(majorlength * r * 2.0f, 1.0f,
                                  float(options.anisotropic));
@@ -2330,9 +2335,8 @@ TextureSystemImpl::texture_lookup(TextureFile& texturefile,
 
 const float*
 TextureSystemImpl::pole_color(TextureFile& texturefile,
-                              PerThreadInfo* /*thread_info*/,
-                              TileRef& tile, int subimage,
-                              int miplevel, int pole)
+                              PerThreadInfo* /*thread_info*/, TileRef& tile,
+                              int subimage, int miplevel, int pole)
 {
     SubimageInfo& si(texturefile.subimageinfo(subimage));
     LevelInfo& lvl(si.levelinfo(miplevel));
@@ -2356,8 +2360,9 @@ TextureSystemImpl::pole_color(TextureFile& texturefile,
                 int y = pole * (si.get_height(miplevel) - 1);  // 0 or height-1
                 for (int c = 0; c < si.get_channels(); ++c)
                     p[c] = 0.0f;
-                const unsigned char* texel
-                    = tile->bytedata() + y * si.get_tile_width(miplevel) * pixelsize;
+                const unsigned char* texel = tile->bytedata()
+                                             + y * si.get_tile_width(miplevel)
+                                                   * pixelsize;
                 for (int i = 0; i < width; ++i, texel += pixelsize)
                     for (int c = 0; c < si.get_channels(); ++c) {
                         if (pixeltype == TypeDesc::UINT8)
@@ -2386,8 +2391,7 @@ TextureSystemImpl::pole_color(TextureFile& texturefile,
 void
 TextureSystemImpl::fade_to_pole(float t, float* accum, float& weight,
                                 TextureFile& texturefile,
-                                PerThreadInfo* thread_info,
-                                TextureOpt& options,
+                                PerThreadInfo* thread_info, TextureOpt& options,
                                 int miplevel, int nchannels)
 {
     // N.B. We want to fade to pole colors right at texture
@@ -2446,7 +2450,8 @@ TextureSystemImpl::sample_closest(
 
         int stex, ttex;  // Texel coordinates
         float sfrac, tfrac;
-        st_to_texel(s, t, texturefile, options.subimage, miplevel, stex, ttex, sfrac, tfrac);
+        st_to_texel(s, t, texturefile, options.subimage, miplevel, stex, ttex,
+                    sfrac, tfrac);
 
         if (sfrac > 0.5f)
             ++stex;
@@ -2458,11 +2463,12 @@ TextureSystemImpl::sample_closest(
         svalid = swrap_func(stex, si.get_x(miplevel), si.get_width(miplevel));
         tvalid = twrap_func(ttex, si.get_y(miplevel), si.get_height(miplevel));
         if (!si.has_full_pixel_range(miplevel)) {
-            svalid
-                &= (stex >= si.get_x(miplevel)
-                    && stex < (si.get_x(miplevel) + si.get_width(miplevel)));  // data window
+            svalid &= (stex >= si.get_x(miplevel)
+                       && stex < (si.get_x(miplevel)
+                                  + si.get_width(miplevel)));  // data window
             tvalid &= (ttex >= si.get_y(miplevel)
-                       && ttex < (si.get_y(miplevel) + si.get_height(miplevel)));
+                       && ttex
+                              < (si.get_y(miplevel) + si.get_height(miplevel)));
         }
         if (!(svalid & tvalid)) {
             // All texels we need were out of range and using 'black' wrap.
@@ -2524,9 +2530,9 @@ TextureSystemImpl::sample_closest(
 /// to the right or down, respectively.  Do this for 4 s,t values at a time.
 inline void
 st_to_texel_simd(const vfloat4& s_, const vfloat4& t_,
-                 TextureSystemImpl::TextureFile& texturefile,
-                 int subimage, int miplevel, vint4& i,
-                 vint4& j, vfloat4& ifrac, vfloat4& jfrac)
+                 TextureSystemImpl::TextureFile& texturefile, int subimage,
+                 int miplevel, vint4& i, vint4& j, vfloat4& ifrac,
+                 vfloat4& jfrac)
 {
     const SubimageInfo& si(texturefile.subimageinfo(subimage));
     vfloat4 s, t;
@@ -2570,7 +2576,8 @@ TextureSystemImpl::sample_bilinear(
                                        : NULL;
     simd::vint4 xy(si.get_x(miplevel), si.get_y(miplevel));
     simd::vint4 widthheight(si.get_width(miplevel), si.get_height(miplevel));
-    simd::vint4 tilewh(si.get_tile_width(miplevel), si.get_tile_height(miplevel));
+    simd::vint4 tilewh(si.get_tile_width(miplevel),
+                       si.get_tile_height(miplevel));
     simd::vint4 tilewhmask = tilewh - 1;
     bool use_fill = (nchannels_result > actualchannels && options.fill);
     bool tilepow2 = ispow2(si.get_tile_width(miplevel))
@@ -2580,7 +2587,8 @@ TextureSystemImpl::sample_bilinear(
     int tile_chbegin = 0, tile_chend = si.get_channels();
     // need_pole: do we potentially need to fade to special pole color?
     // If we do, can't restrict channel range or fade_to_pole won't work.
-    bool need_pole = (options.envlayout == LayoutLatLong && si.has_one_tile(miplevel));
+    bool need_pole = (options.envlayout == LayoutLatLong
+                      && si.has_one_tile(miplevel));
     if (si.get_channels() > m_max_tile_channels && !need_pole) {
         // For files with many channels, narrow the range we cache
         tile_chbegin = options.firstchannel;
@@ -2611,8 +2619,9 @@ TextureSystemImpl::sample_bilinear(
         if (sample4 == 0) {
             s_simd.load(s_ + sample);
             t_simd.load(t_ + sample);
-            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage, miplevel, sint_simd,
-                             tint_simd, sfrac_simd, tfrac_simd);
+            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage,
+                             miplevel, sint_simd, tint_simd, sfrac_simd,
+                             tfrac_simd);
         }
         int sint = sint_simd[sample4], tint = tint_simd[sample4];
         float sfrac = sfrac_simd[sample4], tfrac = tfrac_simd[sample4];
@@ -2629,10 +2638,14 @@ TextureSystemImpl::sample_bilinear(
             // Both directions use the same wrap function, call in parallel.
             stvalid = wrap_func(sttex, xy, widthheight);
         } else {
-            stvalid.load(swrap_func(sttex[S0], si.get_x(miplevel), si.get_width(miplevel)),
-                         swrap_func(sttex[S1], si.get_x(miplevel), si.get_width(miplevel)),
-                         twrap_func(sttex[T0], si.get_y(miplevel), si.get_height(miplevel)),
-                         twrap_func(sttex[T1], si.get_y(miplevel), si.get_height(miplevel)));
+            stvalid.load(swrap_func(sttex[S0], si.get_x(miplevel),
+                                    si.get_width(miplevel)),
+                         swrap_func(sttex[S1], si.get_x(miplevel),
+                                    si.get_width(miplevel)),
+                         twrap_func(sttex[T0], si.get_y(miplevel),
+                                    si.get_height(miplevel)),
+                         twrap_func(sttex[T1], si.get_y(miplevel),
+                                    si.get_height(miplevel)));
         }
 
         // Account for crop windows
@@ -2765,8 +2778,7 @@ TextureSystemImpl::sample_bilinear(
             float tt = t_[sample] * height;
             if (tt < 1.0f || tt > (height - 1.0f))
                 fade_to_pole(tt, (float*)&accum, weight, texturefile,
-                             thread_info, options, miplevel,
-                             actualchannels);
+                             thread_info, options, miplevel, actualchannels);
         }
 
         simd::vfloat4 weight_simd = weight;
@@ -2937,7 +2949,8 @@ TextureSystemImpl::sample_bicubic(
 
     // need_pole: do we potentially need to fade to special pole color?
     // If we do, can't restrict channel range or fade_to_pole won't work.
-    bool need_pole   = (options.envlayout == LayoutLatLong && si.has_one_tile(miplevel));
+    bool need_pole   = (options.envlayout == LayoutLatLong
+                      && si.has_one_tile(miplevel));
     int tile_chbegin = 0, tile_chend = si.get_channels();
     if (si.get_channels() > m_max_tile_channels) {
         // For files with many channels, narrow the range we cache
@@ -2966,8 +2979,9 @@ TextureSystemImpl::sample_bicubic(
         if (sample4 == 0) {
             s_simd.load(s_ + sample);
             t_simd.load(t_ + sample);
-            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage, miplevel, sint_simd,
-                             tint_simd, sfrac_simd, tfrac_simd);
+            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage,
+                             miplevel, sint_simd, tint_simd, sfrac_simd,
+                             tfrac_simd);
         }
         int sint = sint_simd[sample4], tint = tint_simd[sample4];
         float sfrac = sfrac_simd[sample4], tfrac = tfrac_simd[sample4];
@@ -3086,7 +3100,8 @@ TextureSystemImpl::sample_bicubic(
                     continue;
                 }
                 imagesize_t row_offset_bytes
-                    = tile_t[j] * imagesize_t(si.get_tile_width(miplevel) * pixelsize);
+                    = tile_t[j]
+                      * imagesize_t(si.get_tile_width(miplevel) * pixelsize);
                 for (int i = 0; i < 4; ++i) {
                     if (!svalid[i]) {
                         texel_simd[j][i].clear();
@@ -3137,8 +3152,7 @@ TextureSystemImpl::sample_bicubic(
             float tt = t_[sample] * height;
             if (tt < 1.0f || tt > (height - 1.0f))
                 fade_to_pole(tt, (float*)&accum, weight, texturefile,
-                             thread_info, options, miplevel,
-                             actualchannels);
+                             thread_info, options, miplevel, actualchannels);
         }
 
         // We use a formulation of cubic B-spline evaluation that reduces to
