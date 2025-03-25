@@ -351,7 +351,7 @@ TextureSystemImpl::environment(TextureHandle* texture_handle_,
         return missing_texture(options, nchannels, result, dresultds,
                                dresultdt);
     }
-    const ImageSpec& spec(texturefile->get_subimage_spec(options.subimage));
+    const ImageSpec& spec(texturefile->spec(options.subimage));
 
     // Environment maps dictate particular wrap modes
     options.swrap = texturefile->m_sample_border
@@ -477,7 +477,7 @@ TextureSystemImpl::environment(TextureHandle* texture_handle_,
             // Filters are in radians, and the vertical resolution of a
             // latlong map is PI radians.  So to compute the raster size of
             // our filter width...
-            float filtwidth_ras = subinfo.levels[m].get_full_height()
+            float filtwidth_ras = subinfo.get_full_height(m)
                                   * filtwidth * M_1_PI;
             // Once the filter width is smaller than one texel at this level,
             // we've gone too far, so we know that we want to interpolate the
@@ -523,8 +523,8 @@ TextureSystemImpl::environment(TextureHandle* texture_handle_,
             int lev = miplevel[level];
             if (options.interpmode == TextureOpt::InterpSmartBicubic) {
                 if (lev == 0
-                    || (texturefile->levelinfo(options.subimage, lev)
-                            .get_full_height()
+                    || (texturefile->subimageinfo(options.subimage)
+                            .get_full_height(lev)
                         < naturalres / 2)) {
                     sampler = &TextureSystemImpl::sample_bicubic;
                     ++stats.cubic_interps;

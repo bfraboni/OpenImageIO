@@ -401,7 +401,7 @@ public:
     /// portion of the way to the next texel to the right or down,
     /// respectively.
     void st_to_texel(float s, float t, TextureFile& texturefile,
-                     const TextureFile::LevelInfo& lvl, int& i, int& j,
+                     int subimage, int miplevel, int& i, int& j,
                      float& ifrac, float& jfrac);
 
     /// Called when the requested texture is missing, fills in the
@@ -423,7 +423,6 @@ public:
     /// called for levels where the whole mipmap level fits on one tile.
     const float* pole_color(TextureFile& texturefile,
                             PerThreadInfo* thread_info,
-                            const ImageCacheFile::LevelInfo& levelinfo,
                             TileRef& tile, int subimage, int miplevel,
                             int pole);
     /// Helper function for lat-long environment maps: called near pole
@@ -433,7 +432,6 @@ public:
     /// This should only be called on the edge texels.
     void fade_to_pole(float t, float* accum, float& weight,
                       TextureFile& texturefile, PerThreadInfo* thread_info,
-                      const ImageCacheFile::LevelInfo& levelinfo,
                       TextureOpt& options, int miplevel, int nchannels);
 
     /// Perform short unit tests.
@@ -526,20 +524,21 @@ TextureSystemImpl::anisotropic_aspect(float& majorlength, float& minorlength,
 
 inline void
 TextureSystemImpl::st_to_texel(float s, float t, TextureFile& texturefile,
-                               const TextureFile::LevelInfo& lvl, int& i,
+                               int subimage, int miplevel, int& i,
                                int& j, float& ifrac, float& jfrac)
 {
+    const TextureFile::SubimageInfo& si(texturefile.subimageinfo(subimage));
     // As passed in, (s,t) map the texture to (0,1).  Remap to texel coords.
     // Note that we have two modes, depending on the m_sample_border.
     if (texturefile.m_sample_border == 0) {
         // texel samples are at 0.5/res, 1.5/res, ..., (res-0.5)/res,
-        s = s * lvl.get_width() + lvl.get_x() - 0.5f;
-        t = t * lvl.get_height() + lvl.get_y() - 0.5f;
+        s = s * si.get_width(miplevel) + si.get_x(miplevel) - 0.5f;
+        t = t * si.get_height(miplevel) + si.get_y(miplevel) - 0.5f;
     } else {
         // first and last rows/columns are *exactly* on the boundary,
         // so samples are at 0, 1/(res-1), ..., 1.
-        s = s * (lvl.get_width() - 1) + lvl.get_x();
-        t = t * (lvl.get_height() - 1) + lvl.get_y();
+        s = s * (si.get_width(miplevel) - 1) + si.get_x(miplevel);
+        t = t * (si.get_height(miplevel) - 1) + si.get_y(miplevel);
     }
     ifrac = floorfrac(s, &i);
     jfrac = floorfrac(t, &j);
