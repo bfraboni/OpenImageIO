@@ -686,6 +686,22 @@ private:
     bool read_unmipped(ImageCachePerThreadInfo* thread_info, const TileID& id,
                        void* data);
 
+    /// helpers for ImageCacheFile::open(...):
+    /// search for a matching ImageSpec within the existing subimages
+    ImageSpec* find_subimage_spec(int subimage, const ImageSpec& spec);
+    /// returns a pointer to an existing or a newly allocated ImageSpec that matches `spec`
+    ImageSpec* find_or_create_subimage_spec(int subimage,
+                                            const ImageSpec& spec);
+    /// search for a similar LevelSpec within the existing subimages at the specified miplevel
+    LevelSpec* find_level_spec(int subimage, int miplevel,
+                               const LevelSpec& spec);
+    /// returns a pointer to an existing or a newly allocated LevelSpec that matches the dimensions from `spec`
+    LevelSpec* find_or_create_level_spec(int subimage, int miplevel,
+                                         const ImageSpec& spec);
+    /// read and init the texture format of this ImageCacheFile from the given ImageSpec
+    /// returns a pointer in case the texture dimensions need to be sanitized
+    bool init_texture_format(const ImageSpec& spec);
+
     // Initialize a bunch of fields based on the ImageSpec.
     // FIXME -- this is actually deeply flawed, many of these things only
     // make sense if they are per subimage, not one value for the whole
