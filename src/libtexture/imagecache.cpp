@@ -696,6 +696,19 @@ ImageCacheFile::init_texture_format(const ImageSpec& spec)
 
 
 
+inline void
+clamp_dimensions(ImageSpec& spec)
+{
+    if (spec.full_width > spec.width)
+        spec.full_width = spec.width;
+    if (spec.full_height > spec.height)
+        spec.full_height = spec.height;
+    if (spec.full_depth > spec.depth)
+        spec.full_depth = spec.depth;
+}
+
+
+
 std::shared_ptr<ImageInput>
 ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
 {
@@ -799,10 +812,6 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
     // of the ImageCacheFile.
     m_subimages.clear();
     int nsubimages = 0;
-    // while(inp->seek_subimage(nsubimages, 0))
-    //     ++nsubimages;
-    // m_subimages.reserve(nsubimages);
-    // nsubimages=0;
 
     // Since each subimage can potentially have its own mipmap levels,
     // keep track of the highest level discovered
@@ -812,34 +821,27 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
     do {
         m_subimages.resize(nsubimages + 1);
         SubimageInfo& si(subimageinfo(nsubimages));
-        int max_mip_res   = imagecache().max_mip_res();
-        int nmip          = 0;
-        ImageSpec* sispec = nullptr;
+        int max_mip_res         = imagecache().max_mip_res();
+        int nmip                = 0;
+        ImageSpec* sispec       = nullptr;
+        bool clamp_texture_dims = false;
         do {
             nativespec = inp->spec(nsubimages, nmip);
             if (nativespec.nchannels > std::numeric_limits<uint16_t>::max())
                 return invalid_file(
                     "Texture with more than 65535 channels are not supported.");
-            tempspec                = nativespec;
-            bool clamp_texture_dims = false;
+            tempspec = nativespec;
             if (nmip == 0) {
                 sispec = find_or_create_subimage_spec(nsubimages, tempspec);
                 OIIO_DASSERT(sispec);
                 // Things to do on MIP level 0, i.e. once per subimage
                 si.init(*this, sispec, imagecache().forcefloat());
                 // Update file texture format at the first subimage
-                // FIXME -- this should really be per-subimage
+                // and clamp texture dimensions if required
                 if (nsubimages == 0) {
                     clamp_texture_dims = init_texture_format(*sispec);
-                    // clamp texture size
-                    if (clamp_texture_dims) {
-                        if (sispec->full_width > sispec->width)
-                            sispec->full_width = sispec->width;
-                        if (sispec->full_height > sispec->height)
-                            sispec->full_height = sispec->height;
-                        if (sispec->full_depth > sispec->depth)
-                            sispec->full_depth = sispec->depth;
-                    }
+                    if (clamp_texture_dims)
+                        clamp_dimensions(*sispec);
                 }
             }
             if (tempspec.tile_width == 0 || tempspec.tile_height == 0) {
@@ -889,15 +891,9 @@ ImageCacheFile::open(ImageCachePerThreadInfo* thread_info)
 
             // ImageCache can't store differing formats per channel
             tempspec.channelformats.clear();
-            // Clamp texture size
-            if (clamp_texture_dims) {
-                if (tempspec.full_width > tempspec.width)
-                    tempspec.full_width = tempspec.width;
-                if (tempspec.full_height > tempspec.height)
-                    tempspec.full_height = tempspec.height;
-                if (tempspec.full_depth > tempspec.depth)
-                    tempspec.full_depth = tempspec.depth;
-            }
+            // Clamp mip level texture dimensions if required
+            if (clamp_texture_dims)
+                clamp_dimensions(tempspec);
             // Each mip level stores only the fields that differ from the native spec
             OIIO_DASSERT(sispec);
             if (has_same_dimensions(*sispec, tempspec))

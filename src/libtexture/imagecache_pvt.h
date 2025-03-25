@@ -700,6 +700,7 @@ private:
                                          const ImageSpec& spec);
     /// read and init the texture format of this ImageCacheFile from the given ImageSpec
     /// returns a pointer in case the texture dimensions need to be sanitized
+    /// FIXME -- this should really be per-subimage
     bool init_texture_format(const ImageSpec& spec);
 
     // Initialize a bunch of fields based on the ImageSpec.
