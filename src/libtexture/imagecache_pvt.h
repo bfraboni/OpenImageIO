@@ -478,7 +478,6 @@ public:
         }
         int get_channels(int m = 0) const
         {
-            //! NOTE: subimages and mip levels should have the same number of channels
             return spec().nchannels;
         }
 
@@ -498,7 +497,6 @@ public:
         }
         size_t get_channel_bytes(int m) const
         {
-            //! NOTE: In the image cache there is a single format for all channels
             return spec().format.size();
         }
         size_t get_pixel_bytes(int m) const
