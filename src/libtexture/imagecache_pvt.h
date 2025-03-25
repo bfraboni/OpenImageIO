@@ -476,10 +476,7 @@ public:
             const LevelInfo& lvl = levelinfo(m);
             return lvl.m_levelspec ? lvl.m_levelspec->depth : spec().depth;
         }
-        int get_channels(int m = 0) const
-        {
-            return spec().nchannels;
-        }
+        int get_channels(int m = 0) const { return spec().nchannels; }
 
         //! The following methods are similar to the ones from ImageSpec.
         //! Underlying evaluation is from either the subimage`m_spec`
@@ -495,10 +492,7 @@ public:
                 r = clamped_mult64(r, (imagesize_t)get_tile_depth(m));
             return r;
         }
-        size_t get_channel_bytes(int m) const
-        {
-            return spec().format.size();
-        }
+        size_t get_channel_bytes(int m) const { return spec().format.size(); }
         size_t get_pixel_bytes(int m) const
         {
             //! TODO: maybe this shouldn't ever happen in the image cache and we
