@@ -22,8 +22,6 @@
 #include <OpenImageIO/timer.h>
 #include <OpenImageIO/unordered_map_concurrent.h>
 
-#include <stdalign.h>
-
 OIIO_NAMESPACE_BEGIN
 
 
