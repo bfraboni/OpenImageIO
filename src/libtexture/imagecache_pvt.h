@@ -301,7 +301,7 @@ public:
             // is that evil ?
             OIIO_STATIC_ASSERT(alignof(ImageSpec) >= alignof(Dimensions));
             OIIO_DASSERT(sizeof(Dimensions)
-                         == ((ptrsize_t)&s.format - (size_t)&s.x));
+                         == ((size_t)&s.format - (size_t)&s.x));
             return *((Dimensions*)&s.x);
         }
     };
