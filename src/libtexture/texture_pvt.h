@@ -400,8 +400,9 @@ public:
     /// sample position, and ifrac and jfrac are the fractional (0-1)
     /// portion of the way to the next texel to the right or down,
     /// respectively.
-    void st_to_texel(float s, float t, TextureFile& texturefile, int subimage,
-                     int miplevel, int& i, int& j, float& ifrac, float& jfrac);
+    void st_to_texel(float s, float t, TextureFile& texturefile,
+                     const ImageSpec::Dimensions& dims, int& i, int& j,
+                     float& ifrac, float& jfrac);
 
     /// Called when the requested texture is missing, fills in the
     /// results.
@@ -522,11 +523,9 @@ TextureSystemImpl::anisotropic_aspect(float& majorlength, float& minorlength,
 
 inline void
 TextureSystemImpl::st_to_texel(float s, float t, TextureFile& texturefile,
-                               int subimage, int miplevel, int& i, int& j,
-                               float& ifrac, float& jfrac)
+                               const ImageSpec::Dimensions& dims, int& i,
+                               int& j, float& ifrac, float& jfrac)
 {
-    const TextureFile::SubimageInfo& si(texturefile.subimageinfo(subimage));
-    const ImageSpec::Dimensions& dims(si.dimensions(miplevel));
     // As passed in, (s,t) map the texture to (0,1).  Remap to texel coords.
     // Note that we have two modes, depending on the m_sample_border.
     if (texturefile.m_sample_border == 0) {

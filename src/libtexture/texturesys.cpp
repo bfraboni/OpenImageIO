@@ -2445,8 +2445,7 @@ TextureSystemImpl::sample_closest(
 
         int stex, ttex;  // Texel coordinates
         float sfrac, tfrac;
-        st_to_texel(s, t, texturefile, options.subimage, miplevel, stex, ttex,
-                    sfrac, tfrac);
+        st_to_texel(s, t, texturefile, dims, stex, ttex, sfrac, tfrac);
 
         if (sfrac > 0.5f)
             ++stex;
@@ -2522,12 +2521,10 @@ TextureSystemImpl::sample_closest(
 /// to the right or down, respectively.  Do this for 4 s,t values at a time.
 inline void
 st_to_texel_simd(const vfloat4& s_, const vfloat4& t_,
-                 TextureSystemImpl::TextureFile& texturefile, int subimage,
-                 int miplevel, vint4& i, vint4& j, vfloat4& ifrac,
+                 TextureSystemImpl::TextureFile& texturefile,
+                 const Dimensions& dims, vint4& i, vint4& j, vfloat4& ifrac,
                  vfloat4& jfrac)
 {
-    const SubimageInfo& si(texturefile.subimageinfo(subimage));
-    const Dimensions& dims(si.dimensions(miplevel));
     vfloat4 s, t;
     // As passed in, (s,t) map the texture to (0,1).  Remap to texel coords.
     // Note that we have two modes, depending on the m_sample_border.
@@ -2610,9 +2607,8 @@ TextureSystemImpl::sample_bilinear(
         if (sample4 == 0) {
             s_simd.load(s_ + sample);
             t_simd.load(t_ + sample);
-            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage,
-                             miplevel, sint_simd, tint_simd, sfrac_simd,
-                             tfrac_simd);
+            st_to_texel_simd(s_simd, t_simd, texturefile, dims, sint_simd,
+                             tint_simd, sfrac_simd, tfrac_simd);
         }
         int sint = sint_simd[sample4], tint = tint_simd[sample4];
         float sfrac = sfrac_simd[sample4], tfrac = tfrac_simd[sample4];
@@ -2966,9 +2962,8 @@ TextureSystemImpl::sample_bicubic(
         if (sample4 == 0) {
             s_simd.load(s_ + sample);
             t_simd.load(t_ + sample);
-            st_to_texel_simd(s_simd, t_simd, texturefile, options.subimage,
-                             miplevel, sint_simd, tint_simd, sfrac_simd,
-                             tfrac_simd);
+            st_to_texel_simd(s_simd, t_simd, texturefile, dims, sint_simd,
+                             tint_simd, sfrac_simd, tfrac_simd);
         }
         int sint = sint_simd[sample4], tint = tint_simd[sample4];
         float sfrac = sfrac_simd[sample4], tfrac = tfrac_simd[sample4];
