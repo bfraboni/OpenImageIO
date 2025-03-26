@@ -526,17 +526,18 @@ TextureSystemImpl::st_to_texel(float s, float t, TextureFile& texturefile,
                                float& ifrac, float& jfrac)
 {
     const TextureFile::SubimageInfo& si(texturefile.subimageinfo(subimage));
+    const ImageSpec::Dimensions& dims(si.dimensions(miplevel));
     // As passed in, (s,t) map the texture to (0,1).  Remap to texel coords.
     // Note that we have two modes, depending on the m_sample_border.
     if (texturefile.m_sample_border == 0) {
         // texel samples are at 0.5/res, 1.5/res, ..., (res-0.5)/res,
-        s = s * si.get_width(miplevel) + si.get_x(miplevel) - 0.5f;
-        t = t * si.get_height(miplevel) + si.get_y(miplevel) - 0.5f;
+        s = s * dims.width + dims.x - 0.5f;
+        t = t * dims.height + dims.y - 0.5f;
     } else {
         // first and last rows/columns are *exactly* on the boundary,
         // so samples are at 0, 1/(res-1), ..., 1.
-        s = s * (si.get_width(miplevel) - 1) + si.get_x(miplevel);
-        t = t * (si.get_height(miplevel) - 1) + si.get_y(miplevel);
+        s = s * (dims.width - 1) + dims.x;
+        t = t * (dims.height - 1) + dims.y;
     }
     ifrac = floorfrac(s, &i);
     jfrac = floorfrac(t, &j);
