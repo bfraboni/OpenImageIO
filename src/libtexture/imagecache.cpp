@@ -38,7 +38,7 @@
 
 OIIO_NAMESPACE_BEGIN
 using namespace pvt;
-using Dimensions   = ImageSpec::Dimensions;
+using Dimensions   = ImageCacheFile::Dimensions;
 using LevelInfo    = ImageCacheFile::LevelInfo;
 using SubimageInfo = ImageCacheFile::SubimageInfo;
 
@@ -318,7 +318,7 @@ LevelInfo::LevelInfo(ImageSpec* spec_, Dimensions* dims_)
     , nztiles(1)
 {
     OIIO_DASSERT(spec_);
-    const Dimensions& dims = m_dims ? *m_dims : spec_->dims;
+    const Dimensions& dims = m_dims ? *m_dims : Dimensions::convert(*spec_);
     nchannels              = dims.nchannels;
     full_pixel_range       = has_full_pixel_range(dims);
     onetile                = has_one_tile(dims);
@@ -674,10 +674,11 @@ ImageCacheFile::find_or_create_dims(int subimage, int miplevel,
     // next we try to deduplicate Dimensions across subimages
     Dimensions* tmp = nullptr;
     if (enable_dims_reuse && subimage > 0)
-        tmp = find_dims(subimage, miplevel, spec.dims);
+        tmp = find_dims(subimage, miplevel, Dimensions::convert(spec));
     // if we cannot reuse a previously allocated Dimensions, just create one
     if (!tmp) {
-        m_pool_dims.emplace_back(std::make_unique<Dimensions>(spec.dims));
+        m_pool_dims.emplace_back(
+            std::make_unique<Dimensions>(Dimensions::convert(spec)));
         tmp = m_pool_dims.back().get();
     }
     return tmp;
